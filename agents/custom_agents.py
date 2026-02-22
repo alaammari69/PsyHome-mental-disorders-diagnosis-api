@@ -38,7 +38,9 @@ while True:
 
     response = agent.invoke({
         "messages": [SystemMessage(content=prompt)],
-    },context=context)
+        },
+        context=context
+    )
 
     #response = chain.invoke(
     #    input={
@@ -49,7 +51,6 @@ while True:
     conversation["messages"] = response["messages"]
     print(conversation["messages"][-1])
     user_prompt = input("You: ")
-s
     if user_prompt == "exit":
         break
 

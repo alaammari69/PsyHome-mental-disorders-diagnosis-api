@@ -47,9 +47,8 @@ while True:
     #        "conversation": conversation,
     #    }
     #)
-
+    print(type(response["structured_response"]), response["structured_response"])
     conversation["messages"] = response["messages"]
-    print(conversation["messages"][-1])
     user_prompt = input("You: ")
     if user_prompt == "exit":
         break

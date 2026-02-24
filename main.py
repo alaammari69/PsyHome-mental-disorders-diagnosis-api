@@ -1,10 +1,20 @@
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
+from agents.custom_agent import SymptomExtractionAgent
+from models.context_classes import PatientContext
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    context = PatientContext(
+        patient_id=2
+    )
+
+    custom_agent = SymptomExtractionAgent(
+        context=context,
+    )
+
+    response = custom_agent.send_message()
+    print(response)
+    answer = input("Youu: ")
+    response2 = custom_agent.send_message(answer)
+    print(response2)
 
 

@@ -6,7 +6,7 @@ from ml_models.llms import LLMModels
 from agents.custom_tools import *
 from models.context_classes import PatientContext
 from prompts.custom_templates import symptom_extraction_prompt_template
-from models.response_schemas import symptom_extraction_schema
+from models.response_schemas import SymptomExtractionAgentResponse
 
 class SymptomExtractionAgent:
     agent = None
@@ -24,7 +24,7 @@ class SymptomExtractionAgent:
             model=LLMModels.get_deepseek_llm_model(),
             tools=[get_patient_info, get_relevant_symptoms_data],
             context_schema=PatientContext,
-            response_format= ToolStrategy(symptom_extraction_schema)
+            response_format= ToolStrategy(SymptomExtractionAgentResponse)
             #checkpointer=memory
         )
 

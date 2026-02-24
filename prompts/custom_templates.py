@@ -8,7 +8,7 @@ symptom_extraction_prompt_template = PromptTemplate(
             +system_prompts.SYMPTOM_EXTRACTION_STYLE_GUIDELINES
             +system_prompts.SYMPTOM_EXTRACTION_CRITICAL_RULES
             +"""
-                \n* Conversation : {conversation}
+                \n* user prompt : {user_prompt}
             """,
-    input_variables=["conversation"]
+    input_variables=["user_prompt"]
 )

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     response = custom_agent.send_message()
     print(response)
     answer = input("Youu: ")
-    response2 = custom_agent.send_message(answer)
+    response2 = custom_agent.send_message(user_prompt=answer)
     print(response2)
 
 

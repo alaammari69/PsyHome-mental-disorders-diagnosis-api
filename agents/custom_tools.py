@@ -19,9 +19,14 @@ symptoms_data_schema = {
 @tool(args_schema=symptoms_data_schema)
 def get_relevant_symptoms_data(user_prompt: str) -> dict:
     """
-    this function is used to get the relevant data to user_prompt to extract possible symptoms
-    :param user_prompt: The user prompt
-    :return: dict with relevant data
+    This function is used to get the relevant data from the user_prompt to extract possible symptoms.
+
+    IMPORTANT:
+    - ONLY call this tool when the user has sent a message describing their symptoms or experience
+    - NEVER call this tool with your own generated text or greeting — only with the exact user message
+    - If there is no user message yet, do NOT call this tool
+    - :param user_prompt: The user prompt (HumanMessage content) exactly as it is (no modifications to it)
+    - :return: dict with relevant data that could help with the symptom extraction
     """
     embedder = HuggingFaceEmbedder.get_embedder()
     embedded_prompt = embedder.embed_query(user_prompt)
@@ -48,8 +53,22 @@ def get_relevant_symptoms_data(user_prompt: str) -> dict:
 def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
     """
     this function is used to get the patient info from the context values
-    :param runtime:
-    :return: dict with patient info
+
+    This tool should be called when patient-specific details are needed to
+    personalize responses or make informed clinical decisions. It automatically
+    resolves the patient identity from the active session context
+
+    The returned patient profile may include demographic details, medical history,
+    and any previously diagnosed mental health conditions
+
+    Returns a dictionary containing the patient's profile data if found,
+    or a descriptive error message if the patient does not exist in the database
+
+    :param runtime: The tool runtime context containing the authenticated
+                    patient session, including the patient_id used for lookup
+    :return: A dict with the patient's information (e.g. name, age, medical
+             history, diagnosed mental disorders), or {"message": "Patient not
+             found in database"} if no matching record exists
     """
     print("TOOL IS USED !")
     patient_id = runtime.context.patient_id

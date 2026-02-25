@@ -19,7 +19,6 @@ if __name__ == '__main__':
         user_message = input("You: ")
         if user_message == "exit":
             break
-
         custom_agent.send_message(user_message)
 
 

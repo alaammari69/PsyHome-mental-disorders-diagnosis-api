@@ -8,6 +8,8 @@ from models.context_classes import PatientContext
 from prompts.custom_templates import symptom_extraction_prompt
 from models.response_schemas import SymptomExtractionAgentResponse
 
+from rich import print
+
 class SymptomExtractionAgent:
     agent = None
     context = None
@@ -47,7 +49,8 @@ class SymptomExtractionAgent:
 
         self.conversation["messages"] = response["messages"]
 
-        print(self.conversation["messages"])
+        print(len(response["messages"]))
+        print(response["messages"])
 
         return response["structured_response"]
 

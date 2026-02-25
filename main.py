@@ -11,10 +11,16 @@ if __name__ == '__main__':
         context=context,
     )
 
-    response = custom_agent.send_message()
-    print(response)
-    answer = input("Youu: ")
-    response2 = custom_agent.send_message(user_prompt=answer)
-    print(response2)
+    result = custom_agent.send_message()
+    while True:
+        print(result.extracted_symptoms)
+        print(result.response)
+
+        user_message = input("You: ")
+        if user_message == "exit":
+            break
+
+        custom_agent.send_message(user_message)
+
 
 

@@ -5,7 +5,7 @@ from langchain.messages import HumanMessage, SystemMessage
 from ml_models.llms import LLMModels
 from agents.custom_tools import *
 from models.context_classes import PatientContext
-from prompts.custom_templates import symptom_extraction_prompt_template
+from prompts.custom_templates import symptom_extraction_prompt
 from models.response_schemas import SymptomExtractionAgentResponse
 
 class SymptomExtractionAgent:
@@ -16,8 +16,12 @@ class SymptomExtractionAgent:
 
     def __init__(self, context: PatientContext):
         self.conversation = {
-            "messages": []
+            "messages": [
+                            SystemMessage(symptom_extraction_prompt),
+                            SystemMessage("start with greeting the patient")
+                         ]
         }
+
         self.context = context
         self.memory = None # still figuring out memory
         self.agent = create_agent(
@@ -29,19 +33,21 @@ class SymptomExtractionAgent:
         )
 
 
-    def send_message(self, user_prompt: str = None):
+    def send_message(self, user_prompt: str = None)->SymptomExtractionAgentResponse:
 
         if user_prompt is not None:
             self.conversation["messages"].append(HumanMessage(content=user_prompt))
 
-        prompt = symptom_extraction_prompt_template.format(conversation=self.conversation)
 
         response = self.agent.invoke({
-            "messages": [SystemMessage(prompt)],
-            "context": self.context
-        })
+                "messages" : self.conversation["messages"]
+            },
+            context=self.context
+        )
 
-        conversation = response
+        self.conversation["messages"] = response["messages"]
+
+        print(self.conversation["messages"])
 
         return response["structured_response"]
 

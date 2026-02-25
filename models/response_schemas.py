@@ -1,4 +1,4 @@
-from pydantic.v1 import BaseModel, Field, conint
+from pydantic import BaseModel, Field, conint
 
 class ExtractedSymptomSchema(BaseModel):
     """the extracted symptom information"""

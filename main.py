@@ -1,5 +1,9 @@
-from agents.custom_agent import SymptomExtractionAgent
+from agents.custom_agents import SymptomExtractionAgent
 from models.context_classes import PatientContext
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':

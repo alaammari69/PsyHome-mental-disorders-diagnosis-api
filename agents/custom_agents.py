@@ -1,57 +1,56 @@
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langchain.messages import HumanMessage, SystemMessage
 
-from agents.custom_tools import get_relevant_symptoms_data, get_patient_info
-from ml_models.embedders import HuggingFaceEmbedder
+from langchain.messages import HumanMessage, SystemMessage
 from ml_models.llms import LLMModels
+from agents.custom_tools import *
 from models.context_classes import PatientContext
 from prompts.custom_templates import symptom_extraction_prompt
 from models.response_schemas import SymptomExtractionAgentResponse
 
-HuggingFaceEmbedder.get_embedder()
+from rich import print
+
+class SymptomExtractionAgent:
+    agent = None
+    context = None
+    memory = None
+    conversation = None
+
+    def __init__(self, context: PatientContext):
+        self.conversation = {
+            "messages": [
+                            SystemMessage(symptom_extraction_prompt),
+                            SystemMessage("start with greeting the patient")
+                         ]
+        }
+
+        self.context = context
+        self.memory = None # still figuring out memory
+        self.agent = create_agent(
+            model=LLMModels.get_deepseek_llm_model(),
+            tools=[get_patient_info, get_relevant_symptoms_data],
+            context_schema=PatientContext,
+            response_format= ToolStrategy(SymptomExtractionAgentResponse)
+            #checkpointer=memory
+        )
 
 
-context = PatientContext(patient_id=2)
+    def send_message(self, user_prompt: str = None)->SymptomExtractionAgentResponse:
+
+        if user_prompt is not None:
+            self.conversation["messages"].append(HumanMessage(content=user_prompt))
 
 
+        response = self.agent.invoke({
+                "messages" : self.conversation["messages"]
+            },
+            context=self.context
+        )
 
-agent = create_agent(
-    model= LLMModels.get_deepseek_llm_model(),
-    tools=[get_relevant_symptoms_data, get_patient_info],
-    context_schema=PatientContext,
-    response_format=ToolStrategy(SymptomExtractionAgentResponse)
-)
+        self.conversation["messages"] = response["messages"]
 
-conversation = {
-    "messages": []
-}
+        print(len(response["messages"]))
+        print(response["messages"])
 
-#chain = symptom_extraction_prompt_template | agent
-
-user_prompt = ""
-while True:
-
-    prompt = symptom_extraction_prompt.format(
-        conversation = conversation
-    )
-
-    response = agent.invoke({
-        "messages": [SystemMessage(content=prompt)],
-        },
-        context=context
-    )
-
-    #response = chain.invoke(
-    #    input={
-    #        "conversation": conversation,
-    #    }
-    #)
-    print(type(response["structured_response"]), response["structured_response"])
-    conversation["messages"] = response["messages"]
-    user_prompt = input("You: ")
-    if user_prompt == "exit":
-        break
-
-    conversation["messages"].append(HumanMessage(content=user_prompt))
+        return response["structured_response"]
 

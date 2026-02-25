@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolRuntime
@@ -7,6 +9,8 @@ from models.context_classes import PatientContext
 from repository.patient_dao import PatientDAO
 from repository.patient_symptoms_dao import PatientSymptomDAO
 from repository.symptomdao import SymptomDAO
+
+
 
 symptoms_data_schema = {
     "type": "object",
@@ -38,9 +42,12 @@ def get_relevant_symptoms_data(user_prompt: str) -> dict:
 
     data.sort_values(by="dot_product", ascending=False, inplace=True)
 
-    print(data[["symptom_name", "dot_product"]].sort_values(by="dot_product", ascending=False))
+    print(data[["symptom_name", "dot_product"]].sort_values(by="dot_product", ascending=False)) # for debugging purposes ...
 
-    relevant_data = data[data["dot_product"] > 0.29]
+    threashhold = float(os.environ["SYMPTOM_EXTRACTION_THREASHHOLD"])
+
+
+    relevant_data = data[data["dot_product"] > threashhold]
     relevant_data.drop(columns=["embedding"], inplace=True)
 
     if len(relevant_data) == 0:

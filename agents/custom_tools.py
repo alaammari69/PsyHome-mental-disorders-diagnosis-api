@@ -78,7 +78,7 @@ def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
              found in database"} if no matching record exists
     """
     print("TOOL IS USED !")
-    patient_id = runtime.context.patient_id
+    patient_id = runtime.context.user_id
 
     patient = PatientDAO.get(patient_id)
     if patient is not None:
@@ -111,7 +111,7 @@ def export_extracted_symptoms(runtime: ToolRuntime[PatientContext],
         :return: None
     """
 
-    patient_id = runtime.context.patient_id
+    patient_id = runtime.context.user_id
     test = PatientSymptomDAO.check_symptom_exists(patient_id, symptom_id)
 
     if test:

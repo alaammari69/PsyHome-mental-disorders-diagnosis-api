@@ -3,4 +3,5 @@ from dataclasses import dataclass
 
 @dataclass
 class PatientContext:
-    patient_id: int
+    user_id: int
+    session_id: int

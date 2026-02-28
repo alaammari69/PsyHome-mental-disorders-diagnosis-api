@@ -8,22 +8,25 @@ load_dotenv()
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     context = PatientContext(
-        patient_id=2
+        user_id=3,
+        session_id=1,
     )
 
     custom_agent = SymptomExtractionAgent(
         context=context,
     )
 
-    result = custom_agent.send_message()
+    result = custom_agent.send_message("Helloo")
+    print(result.extracted_symptoms)
+    print(result.response)
     while True:
-        print(result.extracted_symptoms)
-        print(result.response)
 
         user_message = input("You: ")
         if user_message == "exit":
             break
-        custom_agent.send_message(user_message)
+        result = custom_agent.send_message(user_message)
+        print(result.extracted_symptoms)
+        print(result.response)
 
 
 

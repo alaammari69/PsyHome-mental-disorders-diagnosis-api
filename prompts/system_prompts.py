@@ -45,3 +45,9 @@ Response guidelines:
 - Ground your questions in what the retrieval tool indicates is medically relevant
 - Ask about specific symptoms relevant to the conversation
 """
+
+GREETING_CONDITIONS = """
+start by greeting the user ONLY in these conditions :
+1. at the start of a conversation
+2. if they greeted u first
+"""

@@ -12,7 +12,7 @@ from models.response_schemas import SymptomExtractionAgentResponse
 HuggingFaceEmbedder.get_embedder()
 
 
-context = PatientContext(patient_id=2)
+context = PatientContext(user_id=2)
 
 
 
@@ -27,8 +27,6 @@ conversation = {
     "messages": []
 }
 
-#chain = symptom_extraction_prompt_template | agent
-
 user_prompt = ""
 while True:
 
@@ -42,11 +40,6 @@ while True:
         context=context
     )
 
-    #response = chain.invoke(
-    #    input={
-    #        "conversation": conversation,
-    #    }
-    #)
     print(type(response["structured_response"]), response["structured_response"])
     conversation["messages"] = response["messages"]
     user_prompt = input("You: ")

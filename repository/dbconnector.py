@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import psycopg
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Engine, Connection
 
@@ -9,6 +10,7 @@ class DBConnector:
     _instance = None
     _engine = None
     _connection_string = None
+    _psycopg_conn = None
 
     def __new__(cls):
 
@@ -78,10 +80,21 @@ class DBConnector:
         return self._engine
     def get_connection(self)->Connection:
         """
-
         :return: instance of sqlalchemy Connection object
         """
         return self._engine.connect()
+
+    def get_psycopg_connection(self)->Connection:
+        """
+        :return: instance of psycopg Connection object
+        """
+        if self._psycopg_conn is None:
+            conn_string = self.get_connection_string()
+            self._psycopg_conn = psycopg.connect(  # creating a postgres connection
+                conninfo=conn_string,
+                autocommit=True
+            )
+        return self._psycopg_conn
 
     def get_connection_string(self) -> str:
         """

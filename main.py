@@ -2,6 +2,7 @@ from agents.custom_agents import SymptomExtractionAgent
 from models.context_classes import PatientContext
 
 from dotenv import load_dotenv
+from rich import print
 
 load_dotenv()
 
@@ -9,12 +10,17 @@ load_dotenv()
 if __name__ == '__main__':
     context = PatientContext(
         user_id=3,
-        session_id=1,
+        session_id="1",
     )
 
     custom_agent = SymptomExtractionAgent(
         context=context,
     )
+
+    messages = custom_agent.get_all_messages()
+    print(type(messages))
+    for msg in messages:
+        print(msg)
 
     result = custom_agent.send_message("Helloo")
     print(result.extracted_symptoms)

@@ -1,7 +1,7 @@
 import numpy as np
 
 from repository.symptomdao import SymptomDAO
-from services.embedding_script import create_embedding, update_all_db_embeddings
+from embedder.embedding_script import create_embedding, update_all_db_embeddings
 
 data = SymptomDAO.get_all()
 query = ""

@@ -1,6 +1,6 @@
 import numpy
 
-from ml_models.embedders import HuggingFaceEmbedder
+from embedder.embedders import HuggingFaceEmbedder
 from repository.symptomdao import SymptomDAO
 
 
@@ -15,7 +15,7 @@ def create_embedding(text : str)-> numpy.ndarray:
 
 def update_all_db_embeddings()-> bool:
     """
-    updates all db embeddings for all tables
+    updates all db embeddings for all symptoms in the database
     :return: true if no errors were encountered
     """
     embedder = HuggingFaceEmbedder.get_embedder()
@@ -30,6 +30,3 @@ def update_all_db_embeddings()-> bool:
     except Exception as e:
         print(e)
         return False
-
-
-update_all_db_embeddings()

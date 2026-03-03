@@ -3,7 +3,7 @@ from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import HumanMessage, SystemMessage
 
 from agents.custom_tools import get_relevant_symptoms_data, get_patient_info
-from ml_models.embedders import HuggingFaceEmbedder
+from embedder.embedders import HuggingFaceEmbedder
 from ml_models.llms import LLMModels
 from models.context_classes import PatientContext
 from prompts.custom_templates import symptom_extraction_prompt

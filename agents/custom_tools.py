@@ -4,7 +4,7 @@ import numpy as np
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolRuntime
 
-from ml_models.embedders import HuggingFaceEmbedder
+from embedder.embedders import HuggingFaceEmbedder
 from models.context_classes import PatientContext
 from repository.patient_dao import PatientDAO
 from repository.patient_symptoms_dao import PatientSymptomDAO

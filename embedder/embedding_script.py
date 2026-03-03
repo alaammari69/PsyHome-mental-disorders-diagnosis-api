@@ -22,9 +22,13 @@ def update_all_db_embeddings()-> bool:
     try:
         symptoms_df = SymptomDAO.get_all()
 
+
         for _,row in symptoms_df.iterrows():
-            text = row["symptom_description"]
+            # adding the name and description in one text
+            text =row["symptom_name"] + ": " + row["symptom_description"]
+            # create the embedding for the text
             emb = embedder.embed_query(text)
+            # update the embedding column for each symptom in the db
             SymptomDAO.update(row["symptom_id"], embedding= emb)
         return True
     except Exception as e:

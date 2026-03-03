@@ -12,25 +12,24 @@ from repository.symptomdao import SymptomDAO
 
 
 
-symptoms_data_schema = {
-    "type": "object",
-    "properties": {
-        "user_prompt": {"type": "string"}
-    },
-    "required": ["user_prompt"]
-}
-
-@tool(args_schema=symptoms_data_schema)
+@tool
 def get_relevant_symptoms_data(user_prompt: str) -> dict:
     """
-    This function is used to get the relevant data from the user_prompt to extract possible symptoms.
+    Analyzes the user's message against the clinical database to identify up to 6 candidate symptoms (Threshold: 0.18).
 
     IMPORTANT:
-    - ONLY call this tool when the user has sent a message describing their symptoms or experience
-    - NEVER call this tool with your own generated text or greeting — only with the exact user message
-    - If there is no user message yet, do NOT call this tool
-    - :param user_prompt: The user prompt (HumanMessage content) exactly as it is (no modifications to it)
-    - :return: dict with relevant data that could help with the symptom extraction
+    - ONLY call this when the user describes experiences, emotions, or relationship patterns.
+    - NEVER call this for greetings, small talk, or your own generated text.
+    - Provide the EXACT, unmodified user message.
+
+    AGENT INSTRUCTIONS FOR MULTI-SYMPTOM EXTRACTION:
+    1. SCORING HIERARCHY: Symptoms with higher dot_product scores are stronger leads. Prioritize these for extraction.
+    2. MULTI-EXTRACTION: If the user's input contains evidence for multiple symptoms in the returned list, extract ALL that apply.
+    3. CLINICAL VALIDATION: Use the 'symptom_name' to cross-reference the user's phrasing. If a candidate is mathematically similar but clinically irrelevant, omit it.
+    4. CONFIDENCE: If a symptom is returned with a score > 0.25 and matches the user's sentiment, be decisive in your extraction.
+
+    :param user_prompt: The exact HumanMessage content.
+    :return: A dictionary containing the top 6 semantically similar symptoms and their clinical scores.
     """
     embedder = HuggingFaceEmbedder.get_embedder()
     embedded_prompt = embedder.embed_query(user_prompt)
@@ -44,16 +43,17 @@ def get_relevant_symptoms_data(user_prompt: str) -> dict:
 
     print(data[["symptom_name", "dot_product"]].sort_values(by="dot_product", ascending=False)) # for debugging purposes ...
 
-    threashhold = float(os.environ["SYMPTOM_EXTRACTION_THREASHHOLD"])
+    threshold = float(os.environ["SYMPTOM_EXTRACTION_THRESHOLD"])
+    max_symptoms = int(os.environ["SYMPTOM_EXTRACTION_MAX_SYMPTOMS"])
 
 
-    relevant_data = data[data["dot_product"] > threashhold]
+    relevant_data = data[data["dot_product"] > threshold]
     relevant_data.drop(columns=["embedding"], inplace=True)
 
     if len(relevant_data) == 0:
         return {"message": "No closely matching symptoms found"}
     else :
-        return relevant_data.head(5).to_dict(orient="records")
+        return relevant_data.head(max_symptoms).to_dict(orient="records")
 
 
 @tool

@@ -1,6 +1,7 @@
 import psycopg
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
+from langchain_core.messages import SystemMessage
 
 from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna handle all the saving and reloading of the messages automatically
 
@@ -61,13 +62,22 @@ class SymptomExtractionAgent:
 
 
 
-    def send_message(self, user_prompt: str)->SymptomExtractionAgentResponse:
+    def send_human_message(self, user_prompt: str)->SymptomExtractionAgentResponse:
         response = self.agent.invoke(
             input={"messages" : [HumanMessage(content=user_prompt)]},
             context=self.context,
             config=self.config
         )
-        print(response)
+        #print(response)
+        return response["structured_response"]
+
+    def send_system_message(self, developer_prompt: str)->SymptomExtractionAgentResponse:
+        response = self.agent.invoke(
+            input={"messages": [SystemMessage(content=developer_prompt)]},
+            context=self.context,
+            config=self.config
+        )
+        #print(response)
         return response["structured_response"]
 
     def get_all_messages(self):
@@ -76,5 +86,7 @@ class SymptomExtractionAgent:
         :return: history messages
         """
         checkpointer_tuple = self.checkpointer.get_tuple(config= self.config)
-
-        return checkpointer_tuple[1]['channel_values']['messages']
+        if checkpointer_tuple is not None:
+            return checkpointer_tuple[1]['channel_values']['messages']
+        else:
+            return None

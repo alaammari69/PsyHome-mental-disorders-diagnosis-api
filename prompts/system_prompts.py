@@ -48,6 +48,7 @@ Response guidelines:
 
 GREETING_CONDITIONS = """
 start by greeting the user ONLY in these conditions :
-1. at the start of a conversation
+1. if the human message was exactly ABC123!?
 2. if they greeted u first
+3. if you had a system message mid conversation asking for this
 """

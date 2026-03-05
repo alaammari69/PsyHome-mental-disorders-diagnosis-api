@@ -1,7 +1,7 @@
 import psycopg
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, ToolMessage, AIMessage
 
 from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna handle all the saving and reloading of the messages automatically
 
@@ -10,8 +10,10 @@ from langchain.messages import HumanMessage
 from ml_models.llms import LLMModels
 from agents.custom_tools import *
 from models.context_classes import PatientContext
-from models.response_schemas import SymptomExtractionAgentResponse
+from models.response_schemas import SymptomExtractionAgentResponse, ExtractedSymptomSchema
 from prompts.custom_templates import symptom_extraction_prompt
+
+from repository.patient_symptoms_dao import PatientSymptomDAO
 
 from rich import print
 
@@ -30,6 +32,33 @@ def _create_checkpointer()-> PostgresSaver:
     checkpointer = PostgresSaver(postgres_conn)
     checkpointer.setup()
     return checkpointer
+
+def _export_extracted_symptoms_to_DB(user_id:int, thread_id: str, symptoms: list[ExtractedSymptomSchema])->bool:
+    """
+    this method is used to save extracted symptoms to the DB
+    :param user_id: user id
+    :param thread_id: thread or session id
+    :param symptoms: list of symptoms from the structured output of the agent
+    :return:
+    """
+    try:
+        if symptoms is None:
+            print("No symptoms to save")
+            return True
+
+        for symptom in symptoms:
+            PatientSymptomDAO.insert_or_update_max_intensity(
+                patient_id=user_id,
+                symptom_id=int(symptom.symptom_id),
+                thread_id=thread_id,
+                intensity=symptom.symptom_existence
+            )
+        return True
+    except Exception as e:
+        print("saving symptoms failed")
+        print(e)
+        return False
+
 
 
 class SymptomExtractionAgent:
@@ -63,13 +92,24 @@ class SymptomExtractionAgent:
 
 
     def send_human_message(self, user_prompt: str)->SymptomExtractionAgentResponse:
+
+        # first step is generating the response
         response = self.agent.invoke(
             input={"messages" : [HumanMessage(content=user_prompt)]},
             context=self.context,
             config=self.config
         )
-        #print(response)
-        return response["structured_response"]
+        # extracting the structured format of the response
+        structured_response = response["structured_response"]
+
+        # saving the extracted symptoms according to the user and thread (session)
+        _export_extracted_symptoms_to_DB(
+            user_id=self.context.user_id,
+            thread_id=self.context.session_id,
+            symptoms=structured_response.extracted_symptoms
+        )
+
+        return structured_response
 
     def send_system_message(self, developer_prompt: str)->SymptomExtractionAgentResponse:
         response = self.agent.invoke(
@@ -83,6 +123,7 @@ class SymptomExtractionAgent:
     def get_all_messages(self):
         """
         this method is to get all messages from a certain user_id and thread_id passed in the constructor
+        in the format of SystemMessages and ToolMessages
         :return: history messages
         """
         checkpointer_tuple = self.checkpointer.get_tuple(config= self.config)
@@ -90,3 +131,37 @@ class SymptomExtractionAgent:
             return checkpointer_tuple[1]['channel_values']['messages']
         else:
             return None
+
+
+    def get_previous_conversation(self):
+        conversation = []
+        messages = self.get_all_messages()
+        #print(messages)
+        for msg in messages:
+            if type(msg) is not SystemMessage: # filtering out all the SystemMessages
+
+                # if it's a HumanMessage then we add it directly
+                if type(msg) is HumanMessage:
+                    conversation.append(HumanMessage(content=msg.content))
+
+                # if it's an AIMessage that means it is directed to the agent
+                # since the response is a structured output, we nned to get the structured data right from the args of the SymptomExtractionAgentResponse tool call
+                # and then extract only the 'response' argument
+                # otherwise if we get it from a ToolMessage, it would be one long text with everything unstructured
+                elif type(msg) is AIMessage:
+
+                    if msg.tool_calls: # if the list of tool calls is not empty then we check what tools are called and look for one needed
+                        for tool_call in msg.tool_calls:
+                            if tool_call['name'] == "SymptomExtractionAgentResponse":  # this is the type of tools we are looking for
+
+                                # append it as a new AIMessage BUT the content itself now is in the 'content' attribute for easy access
+                                conversation.append(AIMessage(
+                                    content=tool_call["args"]["response"]
+                                ))
+
+        return conversation
+
+
+
+
+

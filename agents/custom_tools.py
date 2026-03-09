@@ -27,12 +27,23 @@ def get_relevant_symptoms_data(user_prompt: str) -> dict:
 
     AGENT INSTRUCTIONS FOR MULTI-SYMPTOM EXTRACTION:
     1. SCORING HIERARCHY: Symptoms with higher dot_product scores are stronger leads. Prioritize these for extraction.
-    2. MULTI-EXTRACTION: If the user's input contains evidence for multiple symptoms in the returned list, extract ALL that apply.
-    3. CLINICAL VALIDATION: Use the 'symptom_name' to cross-reference the user's phrasing. If a candidate is mathematically similar but clinically irrelevant, omit it.
-    4. CONFIDENCE: If a symptom is returned with a score > 0.25 and matches the user's sentiment, be decisive in your extraction.
+    2. MULTI-EXTRACTION: Extract ALL symptoms that apply — both explicitly stated and implied by the user's words.
+       Do not settle for just one symptom if the user's message suggests multiple.
+    3. INFERRED EXTRACTION: Users rarely use clinical language. Match the emotional and behavioral meaning
+       behind their words to the returned symptoms, not just literal keyword matches.
+       Examples:
+       - "I feel worthless" → extract low self-esteem, self-criticism, negative self-image if returned
+       - "I can't stop thinking about it" → extract intrusive thoughts, rumination if returned
+       - "Nothing makes me happy anymore" → extract anhedonia, emotional numbness if returned
+    4. CLINICAL VALIDATION: Use the 'symptom_name' to cross-reference the user's phrasing.
+       If a candidate is mathematically similar but clinically irrelevant to the context, omit it.
+    5. CONFIDENCE THRESHOLD: If a symptom is returned with a score > 0.25 and matches the user's
+       sentiment (directly or implied), extract it decisively — do not second-guess.
+    6. BIAS TOWARD EXTRACTION: When uncertain, lean toward extracting a symptom rather than omitting it.
+       It is safer to flag a potential symptom for review than to miss it entirely.
 
     :param user_prompt: The exact HumanMessage content.
-    :return: A dictionary containing the top 6 semantically similar symptoms and their clinical scores.
+    :return: A dictionary containing the top semantically similar symptoms and their clinical scores.
     """
     embedder = HuggingFaceEmbedder.get_embedder()
     embedded_prompt = embedder.embed_query(user_prompt)

@@ -9,14 +9,13 @@ from embedder.embedders import HuggingFaceEmbedder
 
 load_dotenv()
 
-
 HuggingFaceEmbedder.get_embedder()
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     context = PatientContext(
         user_id=1,
-        thread_id="14",
+        thread_id="16",
     )
 
     custom_agent = SymptomExtractionAgent(
@@ -32,7 +31,7 @@ if __name__ == '__main__':
             if type(msg) is AIMessage:
                 print(f"AI Assistant: {msg.content}\n")
 
-    result = custom_agent.send_system_message("Greet the patient with it's name and ask how he's doing and be friendly")
+    result = custom_agent.reset_session()
     print(result.extracted_symptoms)
     print(result.response)
     while True:

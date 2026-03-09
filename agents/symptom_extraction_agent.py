@@ -51,7 +51,7 @@ def _export_extracted_symptoms_to_DB(user_id:int, thread_id: str, symptoms: list
                 patient_id=user_id,
                 symptom_id=int(symptom.symptom_id),
                 thread_id=thread_id,
-                intensity=symptom.symptom_existence
+                intensity=int(symptom.symptom_existence)
             )
         return True
     except Exception as e:
@@ -119,6 +119,15 @@ class SymptomExtractionAgent:
         )
         #print(response)
         return response["structured_response"]
+
+    def reset_session(self)->SymptomExtractionAgentResponse:
+        """
+        this method is used to notify the agent that conversation was interrupted for a period of time
+        so the agent would update its context automatically
+        and greet the user again
+        :return: a response to the user
+        """
+        return self.send_system_message("SESSION_RESET")
 
     def get_all_messages(self):
         """

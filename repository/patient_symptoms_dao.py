@@ -41,6 +41,18 @@ class PatientSymptomDAO:
         engine = DBConnector().get_engine()
         return pandas.read_sql(query, engine, params=params)
 
+    @staticmethod
+    def get_by_patient_symptom_id(patient_id: int, symptom_id: int) -> DataFrame:
+        query = text("""
+                     select *
+                     from patient_symptoms
+                     where patient_id = :patient_id
+                       and symptom_id = :symptom_id
+                     """)
+        params = {"patient_id": patient_id, "symptom_id": symptom_id}
+        engine = DBConnector().get_engine()
+        return pandas.read_sql(query, engine, params=params)
+
 
     @staticmethod
     def get_by_patient_symptom_thread_id(patient_id: int, symptom_id: int, thread_id: str)->DataFrame:
@@ -76,18 +88,16 @@ class PatientSymptomDAO:
             return False
 
     @staticmethod
-    def delete(patient_id: int, symptom_id: int, thread_id: str)->bool:
+    def delete(patient_id: int, symptom_id: int)->bool:
         try:
             query = text("""
                 DELETE FROM patient_symptoms
                 WHERE patient_id = :patient_id
                   AND symptom_id = :symptom_id
-                    AND thread_id = :thread_id
             """)
             params = {
                 "patient_id": patient_id,
-                "symptom_id": symptom_id,
-                "thread_id": thread_id
+                "symptom_id": symptom_id
             }
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
@@ -99,12 +109,12 @@ class PatientSymptomDAO:
             return False
 
     @staticmethod
-    def check_symptom_exists(patient_id: int, symptom_id: int, thread_id: str)->bool:
+    def check_symptom_exists(patient_id: int, symptom_id: int)->bool:
         query = text("""
             select count(*) from patient_symptoms
-            where patient_id = :patient_id and symptom_id = :symptom_id and thread_id = :thread_id
+            where patient_id = :patient_id and symptom_id = :symptom_id
         """)
-        params = {"patient_id": patient_id, "symptom_id": symptom_id, "thread_id": thread_id}
+        params = {"patient_id": patient_id, "symptom_id": symptom_id}
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
@@ -119,8 +129,8 @@ class PatientSymptomDAO:
         try:
             query = text("""
                 UPDATE patient_symptoms
-                SET intensity = :intensity
-                where patient_id = :patient_id and symptom_id = :symptom_id and thread_id = :thread_id
+                SET intensity = :intensity, thread_id = :thread_id
+                where patient_id = :patient_id and symptom_id = :symptom_id
                 """)
             params = {
                 "patient_id": patient_id,
@@ -150,29 +160,35 @@ class PatientSymptomDAO:
         """
         try:
             # first trying to retrieve the same symptom if it exists according to the patient(user) or session
-            existing_symptom = PatientSymptomDAO.get_by_patient_symptom_thread_id(
+            existing_symptom = PatientSymptomDAO.get_by_patient_symptom_id(
                 patient_id=patient_id,
-                thread_id=thread_id,
-                symptom_id=int(symptom_id)
+                symptom_id=symptom_id
             )
 
             # if the symptom have never been registered then it inserts it and then work done
-            if existing_symptom.empty:
+            if existing_symptom is None or existing_symptom.empty:
+                print("adding new symptom")
                 return PatientSymptomDAO.insert(
                     patient_id=patient_id,
                     thread_id=thread_id,
-                    symptom_id=int(symptom_id),
+                    symptom_id=symptom_id,
                     intensity=intensity
                 )
             # if the symptom is already registered, we check if the new intensity is higher than the older one
             # (it means that we called this method a second time with the same parameters but the agent is more sure about the existence of this symptom)
             else:
-                if intensity > existing_symptom["intensity"].iloc[0]:
+                current_intensity = int(existing_symptom["intensity"].iloc[0])
+
+                print("New intensity:", intensity)
+                print("Existing intensity:", current_intensity)
+
+                if intensity > current_intensity:
+                    print("updating intensity...")
                     print(existing_symptom)
                     return PatientSymptomDAO.update(
                         patient_id=patient_id,
                         thread_id=thread_id,
-                        symptom_id=int(symptom_id),
+                        symptom_id=symptom_id,
                         intensity=intensity
                     )
             # in this case the intensity is lower than the original value then we just leave it
@@ -182,4 +198,7 @@ class PatientSymptomDAO:
         except Exception as e:
             print(e)
             return False
+
+
+
 

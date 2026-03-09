@@ -8,14 +8,17 @@ from repository.patient_symptoms_dao import PatientSymptomDAO
 
 
 
-PatientDisorderDAO.insert(
+PatientSymptomDAO.insert_or_update_max_intensity(
     patient_id=1,
-    disorder_id=1,
-    diagnosed_at=datetime.date.today(),
-    confidence=0.8,
-    thread_id="8"
-
+    symptom_id=37,
+    thread_id="8",
+    intensity=8
 )
+print(PatientSymptomDAO.get_by_patient_symptom_thread_id(
+    patient_id=1,
+    symptom_id=37,
+    thread_id="8"
+))
 
 
 

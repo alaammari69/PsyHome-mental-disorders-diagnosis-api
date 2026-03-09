@@ -1,6 +1,6 @@
 from langchain_core.messages import HumanMessage, AIMessage
 
-from agents.custom_agents import SymptomExtractionAgent
+from agents.symptom_extraction_agent import SymptomExtractionAgent
 from models.context_classes import PatientContext
 
 from dotenv import load_dotenv
@@ -10,13 +10,13 @@ from embedder.embedders import HuggingFaceEmbedder
 load_dotenv()
 
 
-#HuggingFaceEmbedder.get_embedder()
+HuggingFaceEmbedder.get_embedder()
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     context = PatientContext(
         user_id=1,
-        session_id="8",
+        thread_id="14",
     )
 
     custom_agent = SymptomExtractionAgent(
@@ -32,7 +32,7 @@ if __name__ == '__main__':
             if type(msg) is AIMessage:
                 print(f"AI Assistant: {msg.content}\n")
 
-    result = custom_agent.send_system_message("Greet the patient and ask how he's doing")
+    result = custom_agent.send_system_message("Greet the patient with it's name and ask how he's doing and be friendly")
     print(result.extracted_symptoms)
     print(result.response)
     while True:

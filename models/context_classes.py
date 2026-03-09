@@ -4,4 +4,6 @@ from dataclasses import dataclass
 @dataclass
 class PatientContext:
     user_id: int
-    session_id: str
+    thread_id: str
+    #previous_symptoms: str
+    #previous_diagnoses: str

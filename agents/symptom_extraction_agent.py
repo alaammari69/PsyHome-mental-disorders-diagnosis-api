@@ -86,7 +86,7 @@ class SymptomExtractionAgent:
         # this object is going to be passed in the invoke() method
         # this is what's going to specify to the checkpointer what messages to retrieve and where to save
         self.config = {
-            "configurable" : {"thread_id": context.session_id, "user_id" : context.user_id}
+            "configurable" : {"thread_id": context.thread_id, "user_id" : context.user_id}
         }
 
 
@@ -105,7 +105,7 @@ class SymptomExtractionAgent:
         # saving the extracted symptoms according to the user and thread (session)
         _export_extracted_symptoms_to_DB(
             user_id=self.context.user_id,
-            thread_id=self.context.session_id,
+            thread_id=self.context.thread_id,
             symptoms=structured_response.extracted_symptoms
         )
 
@@ -136,6 +136,9 @@ class SymptomExtractionAgent:
     def get_previous_conversation(self):
         conversation = []
         messages = self.get_all_messages()
+
+        if messages is None:
+            return None
         #print(messages)
         for msg in messages:
             if type(msg) is not SystemMessage: # filtering out all the SystemMessages

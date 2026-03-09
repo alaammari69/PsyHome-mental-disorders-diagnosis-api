@@ -18,6 +18,29 @@ class PatientSymptomDAO:
         engine = DBConnector().get_engine()
         return pandas.read_sql(query, engine)
 
+    @staticmethod
+    def get_by_patient_id(patient_id: int):
+        query = text("""
+                     select *
+                     from patient_symptoms
+                     where patient_id = :patient_id
+                     """)
+        params = {"patient_id": patient_id}
+        engine = DBConnector().get_engine()
+        return pandas.read_sql(query, engine, params=params)
+
+    @staticmethod
+    def get_by_patient_thread_id(patient_id: int, thread_id: str):
+        query = text("""
+                     select *
+                     from patient_symptoms
+                     where patient_id = :patient_id
+                       and thread_id = :thread_id
+                     """)
+        params = {"patient_id": patient_id, "thread_id": thread_id}
+        engine = DBConnector().get_engine()
+        return pandas.read_sql(query, engine, params=params)
+
 
     @staticmethod
     def get_by_patient_symptom_thread_id(patient_id: int, symptom_id: int, thread_id: str)->DataFrame:

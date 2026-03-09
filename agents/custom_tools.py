@@ -7,8 +7,11 @@ from langgraph.prebuilt import ToolRuntime
 from embedder.embedders import HuggingFaceEmbedder
 from models.context_classes import PatientContext
 from repository.patient_dao import PatientDAO
+from repository.patient_disorders_dao import PatientDisorderDAO
 from repository.patient_symptoms_dao import PatientSymptomDAO
 from repository.symptomdao import SymptomDAO
+
+from rich import print
 
 
 
@@ -79,52 +82,21 @@ def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
     """
     print("TOOL IS USED !")
     patient_id = runtime.context.user_id
+    thread_id = str(runtime.context.thread_id)
 
-    patient = PatientDAO.get(patient_id)
-    if patient is not None:
-        return patient.to_dict()
+
+    patient_info = PatientDAO.get(patient_id)
+    if patient_info is not None:
+        patient_symptom_history=PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)
+        patient_disorder_history= PatientDisorderDAO.get_by_patient_id(patient_id=patient_id)
+        full_information_dict = {
+            "patient_personal_information": patient_info.to_dict(orient="records"),
+            "patient_symptoms_history": patient_symptom_history.drop(columns="patient_id").to_dict(orient="records"),
+            "patient_disorders_history": patient_disorder_history.drop(columns="patient_id").to_dict(orient="records"),
+        }
+        print(full_information_dict)
+        return full_information_dict
     else:
         return {"message": "Patient not found in database"}
 
 
-
-extracted_symptoms_schema = {
-    "type": "object",
-    "properties": {
-        "symptom_id": {"type": "int"}
-    },
-    "required": ["user_prompt"]
-}
-@tool
-def export_extracted_symptoms(runtime: ToolRuntime[PatientContext],
-                              symptom_id: int,
-                              intensity: int
-                              ) -> None:
-    """
-        Export extracted symptoms to the database for the current patient.
-        If the symptom already exists, update it only if the new intensity is higher.
-        If the symptom doesn't exist, insert it.
-
-        :param runtime: Runtime context containing patient_id
-        :param symptom_id: The ID of the symptom to export
-        :param intensity: The intensity level of the symptom (typically 1-10)
-        :return: None
-    """
-
-    patient_id = runtime.context.user_id
-    test = PatientSymptomDAO.check_symptom_exists(patient_id, symptom_id)
-
-    if test:
-        previous_intensity = PatientSymptomDAO.get_by_patient_symptom_id(patient_id,symptom_id)["intensity"][0]
-        if intensity > previous_intensity:
-            PatientSymptomDAO.update(
-                patient_id=patient_id,
-                symptom_id=symptom_id,
-                intensity=intensity,
-            )
-    else:
-        PatientSymptomDAO.insert(
-            patient_id=patient_id,
-            symptom_id=symptom_id,
-            intensity=intensity,
-        )

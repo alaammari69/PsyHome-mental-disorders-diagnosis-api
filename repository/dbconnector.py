@@ -29,7 +29,6 @@ class DBConnector:
         """
         if self._engine is None:
             try:
-                config = self._load_configs()
                 self.connection_string = self._create_connection_string()
                 self._engine = create_engine(self.connection_string)
             except Exception as e:

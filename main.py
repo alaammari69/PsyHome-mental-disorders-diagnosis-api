@@ -14,8 +14,8 @@ HuggingFaceEmbedder.get_embedder()
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     context = PatientContext(
-        user_id=1,
-        thread_id="16",
+        user_id=3,
+        thread_id="22",
     )
 
     custom_agent = SymptomExtractionAgent(

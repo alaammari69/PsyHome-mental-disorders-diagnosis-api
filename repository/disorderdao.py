@@ -1,4 +1,5 @@
 import pandas
+from pandas.core.interchange.dataframe_protocol import DataFrame
 from sqlalchemy import text
 
 from repository.dbconnector import DBConnector
@@ -9,22 +10,26 @@ class DisorderDAO:
         raise TypeError("cannot instantiate class DisorderDAO")
 
     @staticmethod
-    def get_all():
+    def get_all()->DataFrame:
         query = text("SELECT * FROM disorders ORDER BY category_id, disorder_name")
         engine = DBConnector().get_engine()
         disorders_df = pandas.read_sql(query, engine)
         return disorders_df
 
     @staticmethod
-    def get(disorder_id: int):
-        query = text("SELECT * FROM disorders WHERE disorder_id = :disorder_id")
-        params = {"disorder_id": disorder_id}
+    def get(disorder_id: int | list[int])->DataFrame:
+        if isinstance(disorder_id, list):
+            query = text("SELECT * FROM disorders WHERE disorder_id = ANY(:ids)")
+            params = {"ids": disorder_id}
+        else:
+            query = text("SELECT * FROM disorders WHERE disorder_id = :disorder_id")
+            params = {"disorder_id": disorder_id}
+
         engine = DBConnector().get_engine()
-        disorder_df = pandas.read_sql(query, engine, params=params)
-        return disorder_df
+        return pandas.read_sql(query, engine, params=params)
 
     @staticmethod
-    def get_by_category(category_id: int):
+    def get_by_category(category_id: int)->DataFrame:
         query = text("SELECT * FROM disorders WHERE category_id = :category_id ORDER BY disorder_name")
         params = {"category_id": category_id}
         engine = DBConnector().get_engine()
@@ -40,7 +45,7 @@ class DisorderDAO:
         return disorder_df
 
     @staticmethod
-    def get_by_parent(parent_disorder_id: int):
+    def get_by_parent(parent_disorder_id: int)->DataFrame:
         """
         Get all subtypes of a parent disorder.
 
@@ -57,7 +62,7 @@ class DisorderDAO:
         return subtypes_df
 
     @staticmethod
-    def get_main_disorders():
+    def get_main_disorders()->DataFrame:
         """
         Get all main disorders (not subtypes).
 
@@ -71,7 +76,7 @@ class DisorderDAO:
         return main_disorders_df
 
     @staticmethod
-    def get_subtypes_only():
+    def get_subtypes_only()->DataFrame:
         """
         Get all subtypes (not main disorders).
 
@@ -127,7 +132,7 @@ class DisorderDAO:
             return None
 
     @staticmethod
-    def delete(disorder_id: int):
+    def delete(disorder_id: int)->bool:
         try:
             query = text("DELETE FROM disorders WHERE disorder_id = :disorder_id")
             params = {"disorder_id": disorder_id}
@@ -143,7 +148,7 @@ class DisorderDAO:
     @staticmethod
     def update(disorder_id: int, disorder_name: str = None, dsm_code: str = None,
                minimum_symptoms_required: int = None, category_id: int = None,
-               parent_disorder_id: int = None, is_subtype: bool = None):
+               parent_disorder_id: int = None, is_subtype: bool = None)->bool:
         try:
             updates = []
             params = {"disorder_id": disorder_id}
@@ -210,7 +215,7 @@ class DisorderDAO:
             return None
 
     @staticmethod
-    def get_with_symptom_count(disorder_id: int = None):
+    def get_with_symptom_count(disorder_id: int = None)->DataFrame:
         """
         Get disorder(s) with symptom count.
         Useful for checking if minimum_symptoms_required threshold is met.

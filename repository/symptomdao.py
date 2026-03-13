@@ -2,6 +2,7 @@ import ast
 
 import numpy as np
 import pandas
+from pandas import DataFrame
 from sqlalchemy import text
 
 from repository.dbconnector import DBConnector
@@ -12,7 +13,7 @@ class SymptomDAO:
         raise TypeError("cannot instantiate class SymptomDAO")
 
     @staticmethod
-    def get_all():
+    def get_all()->DataFrame:
         query = text("SELECT * FROM symptoms ORDER BY disorder_id")
         engine = DBConnector().get_engine()
         symptoms_df = pandas.read_sql(query, engine)
@@ -26,7 +27,7 @@ class SymptomDAO:
         return symptoms_df
 
     @staticmethod
-    def get(symptom_id: int):
+    def get(symptom_id: int)->DataFrame:
         query = text("SELECT * FROM symptoms WHERE symptom_id = :symptom_id")
         params = {"symptom_id": symptom_id}
         engine = DBConnector().get_engine()
@@ -40,21 +41,18 @@ class SymptomDAO:
         return symptom_df
 
     @staticmethod
-    def get_by_disorder(disorder_id: int):
+    def get_by_disorder(disorder_id: int)->DataFrame:
         query = text("SELECT * FROM symptoms WHERE disorder_id = :disorder_id")
         params = {"disorder_id": disorder_id}
         engine = DBConnector().get_engine()
         symptoms_df = pandas.read_sql(query, engine, params=params)
 
-        symptoms_df['embedding'] = symptoms_df['embedding'].apply(
-            lambda x: np.array(ast.literal_eval(x), dtype=np.float32) if isinstance(x, str) else (
-                np.array(x, dtype=np.float32) if x is not None else None)
-        )
+        symptoms_df.drop(["embedding"], axis=1, inplace=True)
 
         return symptoms_df
 
     @staticmethod
-    def delete(symptom_id: int):
+    def delete(symptom_id: int)->bool:
         try:
             query = text("DELETE FROM symptoms WHERE symptom_id = :symptom_id")
             params = {"symptom_id": symptom_id}
@@ -68,7 +66,7 @@ class SymptomDAO:
             return False
 
     @staticmethod
-    def update(symptom_id: int, disorder_id: int = None,symptom_name: str = None, symptom_description: str = None, embedding: list = None):
+    def update(symptom_id: int, disorder_id: int = None,symptom_name: str = None, symptom_description: str = None, embedding: list = None)->bool:
         try:
             updates = []
             params = {"symptom_id": symptom_id}

@@ -1,4 +1,5 @@
 import pandas
+from pandas.core.interchange.dataframe_protocol import DataFrame
 from sqlalchemy import text
 
 from repository.dbconnector import DBConnector
@@ -9,7 +10,7 @@ class DiagnosticCategoryDAO:
         raise TypeError("cannot instantiate class DiagnosticCategoriesDao")
 
     @staticmethod
-    def get_all():
+    def get_all()->DataFrame:
         query = text("SELECT * FROM diagnostic_categories")
         engine = DBConnector().get_engine()
         diag_categories_df = pandas.read_sql(query, engine)

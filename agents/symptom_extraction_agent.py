@@ -59,8 +59,6 @@ def _export_extracted_symptoms_to_DB(user_id:int, thread_id: str, symptoms: list
         print(e)
         return False
 
-
-
 class SymptomExtractionAgent:
 
     def __init__(self, context: PatientContext):
@@ -75,7 +73,7 @@ class SymptomExtractionAgent:
         self.checkpointer = _create_checkpointer()
         self.agent = create_agent(
             model=LLMModels.get_deepseek_llm_model(), # using deepseek as the main model (BaseModel)
-            tools=[get_patient_info, get_relevant_symptoms_data],# passing the tools that are only for extracting symptoms (still working on other tools...)
+            tools=[get_patient_info, get_relevant_symptoms_data, get_related_symptoms_and_disorders],# passing the tools that are only for extracting symptoms (still working on other tools...)
             context_schema=PatientContext, # the schema of the context (not the context itself, it's going to be passed in the invoke() method)
             response_format= ToolStrategy(SymptomExtractionAgentResponse),# the schema which the response should be in (the output is a structured response)
             checkpointer=self.checkpointer, # responsible for managing the memory automatically

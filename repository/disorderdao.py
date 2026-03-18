@@ -1,5 +1,5 @@
 import pandas
-from pandas.core.interchange.dataframe_protocol import DataFrame
+from pandas import DataFrame
 from sqlalchemy import text
 
 from repository.dbconnector import DBConnector

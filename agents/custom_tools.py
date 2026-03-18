@@ -120,7 +120,7 @@ def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
 
 
 @tool
-def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext],symptom_ids: list[int]):
+def get_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientContext], symptoms: list[dict]):
     """
     Retrieves all symptoms and their parent disorders that belong to the same disorder cluster(s)
     as the given symptoms, excluding any symptoms the patient has already been assessed for
@@ -162,11 +162,10 @@ def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext],symp
     patient_id = runtime.context.user_id
     all_related_symptoms = []
 
-    for symptom_id in symptom_ids:
+    for symptom in symptoms:
 
         # first we retrieve the disorder_id from the symptom
-        symptom = SymptomDAO.get(symptom_id=symptom_id)
-        disorder_id = int(symptom["disorder_id"][0])
+        disorder_id = int(symptom["disorder_id"])
 
         # then we get all the related symptoms to that disorder
         related_symptoms = SymptomDAO.get_by_disorder(disorder_id=disorder_id)
@@ -179,6 +178,9 @@ def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext],symp
     combined_symptoms = pd.concat(all_related_symptoms, ignore_index=True)
     combined_symptoms.drop_duplicates(subset="symptom_id", inplace=True)
 
+    # remove unwanted data
+    combined_symptoms.drop(columns=["created_at", "updated_at"], inplace=True)
+
     # we remove all the already diagnosed symptoms or the ones that are specified as non-existent (intensity = -1)
     patient_symptom_history = PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)
     ids_to_drop = patient_symptom_history["symptom_id"].tolist()
@@ -188,13 +190,14 @@ def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext],symp
     # get all the related disorders (to allow the agent for a better decision-making to pick the next question)
     disorder_ids = (combined_symptoms["disorder_id"].unique().tolist())
     related_disorders = DisorderDAO.get(disorder_id=disorder_ids)
+    related_disorders.drop(columns=["created_at", "updated_at"], inplace=True)
 
 
     result_dict = {
         "related_disorders": related_disorders.to_dict(orient="records"),
         "related_symptoms": combined_symptoms.to_dict(orient="records"),
     }
-    print("**************************************************************************************************")
+    print("***********************************************************")
     print(result_dict)
-    print("**************************************************************************************************")
+    print("***********************************************************")
     return result_dict

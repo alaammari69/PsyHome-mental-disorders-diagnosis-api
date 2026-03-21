@@ -7,8 +7,8 @@ from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna ha
 
 from langchain.messages import HumanMessage
 
+from agents.custom_tools import get_patient_info, get_relevant_symptoms_data, extract_related_undiagnosed_symptoms_and_disorders
 from ml_models.llms import LLMModels
-from agents.custom_tools import *
 from models.context_classes import PatientContext
 from models.response_schemas import SymptomExtractionAgentResponse, ExtractedSymptomSchema
 from prompts.custom_templates import symptom_extraction_prompt
@@ -73,7 +73,7 @@ class SymptomExtractionAgent:
         self.checkpointer = _create_checkpointer()
         self.agent = create_agent(
             model=LLMModels.get_deepseek_llm_model(), # using deepseek as the main model (BaseModel)
-            tools=[get_patient_info, get_relevant_symptoms_data, extract_related_undiagnosed_symptoms_and_disorders],# passing the tools that are only for extracting symptoms (still working on other tools...)
+            tools=[get_patient_info, get_relevant_symptoms_data],# passing the tools that are only for extracting symptoms (still working on other tools...)
             context_schema=PatientContext, # the schema of the context (not the context itself, it's going to be passed in the invoke() method)
             response_format= ToolStrategy(SymptomExtractionAgentResponse),# the schema which the response should be in (the output is a structured response)
             checkpointer=self.checkpointer, # responsible for managing the memory automatically
@@ -175,90 +175,4 @@ class SymptomExtractionAgent:
                                 ))
 
         return conversation
-
-
-@tool
-@tool
-def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientContext], symptoms: list[dict]):
-    """
-    Retrieves all symptoms and their parent disorders that belong to the same disorder cluster(s)
-    as the given symptoms, excluding any symptoms the patient has already been assessed for
-    (whether confirmed or marked as non-existent). Use this to discover new, unassessed clinically
-    related symptoms and understand their disorder context, enabling smarter and more targeted
-    follow-up questions.
-
-    WHEN TO CALL THIS:
-    - After extracting one or more symptoms from the user's message
-    - When you want to ask a follow-up question grounded in clinical context
-    - When you suspect the user may have related symptoms they haven't described yet
-
-    AGENT INSTRUCTIONS:
-    1. Use 'related_disorders' to understand the clinical context of the symptom cluster
-    2. Use 'related_symptoms' to identify unassessed symptoms the user has NOT yet mentioned
-    3. Cross-reference both to pick the most clinically relevant follow-up question
-    4. NEVER ask about all returned symptoms at once — ask about ONE at a time
-    5. Do NOT reveal symptom or disorder names directly to the user — translate them into
-       natural, conversational language.
-       Example: instead of "Do you experience anhedonia?" ask "Have you found it hard
-       to enjoy things you used to like?"
-    6. If 'related_symptoms' is empty, all related symptoms have already been assessed —
-       broaden your questioning or move to a different disorder cluster.
-
-    :param runtime: The tool runtime context containing the authenticated patient session,
-                    used to fetch the patient's symptom history for filtering
-    :param symptom_ids: List of already extracted symptom IDs to use as reference points
-    :return: A dictionary with two keys:
-             - 'related_disorders': list of disorder records associated with the symptom cluster,
-               each containing disorder_id and disorder_name
-             - 'related_symptoms': deduplicated list of unassessed symptom records, each
-               containing symptom_id, symptom_name, symptom_description, and disorder_id.
-               Empty if all related symptoms have already been assessed.
-    """
-
-    print("get_related_symptoms_and_disorders tool is used !")
-
-    # get the needed context variables
-    patient_id = runtime.context.user_id
-    all_related_symptoms = []
-
-    for symptom in symptoms:
-
-        # first we retrieve the disorder_id from the symptom
-        disorder_id = int(symptom["disorder_id"])
-
-        # then we get all the related symptoms to that disorder
-        related_symptoms = SymptomDAO.get_by_disorder(disorder_id=disorder_id)
-        all_related_symptoms.append(related_symptoms)
-
-    if not all_related_symptoms:
-        return []
-
-     # combine all symptoms dataframes into one DataFrame
-    combined_symptoms = pd.concat(all_related_symptoms, ignore_index=True)
-    combined_symptoms.drop_duplicates(subset="symptom_id", inplace=True)
-
-    # remove unwanted data
-    combined_symptoms.drop(columns=["created_at", "updated_at"], inplace=True)
-
-    # we remove all the already diagnosed symptoms or the ones that are specified as non-existent (intensity = -1)
-    patient_symptom_history = PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)
-    ids_to_drop = patient_symptom_history["symptom_id"].tolist()
-    print(ids_to_drop)
-    combined_symptoms.drop(combined_symptoms[combined_symptoms["symptom_id"].isin(ids_to_drop)].index, inplace=True)
-
-    # get all the related disorders (to allow the agent for a better decision-making to pick the next question)
-    disorder_ids = (combined_symptoms["disorder_id"].unique().tolist())
-    related_disorders = DisorderDAO.get(disorder_id=disorder_ids)
-    related_disorders.drop(columns=["created_at", "updated_at"], inplace=True)
-
-
-    result_dict = {
-        "related_disorders": related_disorders.to_dict(orient="records"),
-        "related_symptoms": combined_symptoms.to_dict(orient="records"),
-    }
-    print("***********************************************************")
-    print(result_dict)
-    print("***********************************************************")
-    return result_dict
-
 

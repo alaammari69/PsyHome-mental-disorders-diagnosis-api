@@ -21,7 +21,7 @@ from rich import print
 
 
 @tool
-def get_relevant_symptoms_data(user_prompt: str) -> dict:
+def get_relevant_symptoms_data(runtime: ToolRuntime[PatientContext],user_prompt: str) -> dict:
     """
     Analyzes the user's message against the clinical database to identify up to 6 candidate symptoms (Threshold: 0.18).
 
@@ -50,25 +50,36 @@ def get_relevant_symptoms_data(user_prompt: str) -> dict:
     :param user_prompt: The exact HumanMessage content.
     :return: A dictionary containing the top semantically similar symptoms and their clinical scores.
     """
+    print("////////////////////////\nget_relevant_symptoms_data tool is used !\n/////////////////////////")
+
+
+    runtime.context.last_user_text = user_prompt # first we save the user prompt for future use cases
+
+    # we get the embedder instance and then embedd the user_prompt
     embedder = HuggingFaceEmbedder.get_embedder()
     embedded_prompt = embedder.embed_query(user_prompt)
 
+    # using the embedded user_prompt, we calculate the dot product for each symptom with the user_prompt
     data = SymptomDAO.get_all()
-
-
     data["dot_product"] = data["embedding"].apply(lambda x: np.dot(x, embedded_prompt))
 
+    # we sort the values by the dot_product (higher value means more semantic similarity)
     data.sort_values(by="dot_product", ascending=False, inplace=True)
 
     print(data[["symptom_name", "dot_product"]].sort_values(by="dot_product", ascending=False)) # for debugging purposes ...
 
+
     threshold = float(os.environ["SYMPTOM_EXTRACTION_THRESHOLD"])
     max_symptoms = int(os.environ["SYMPTOM_EXTRACTION_MAX_SYMPTOMS"])
 
-
+    # filter out the noise from the data (dot product is very low so it could return false data)
     relevant_data = data[data["dot_product"] > threshold]
-    relevant_data.drop(columns=["embedding"], inplace=True)
 
+    # remove the embeddings column since it's not used after this step,
+    # and we remove any other columns that are not useful in the process
+    relevant_data.drop(columns=["embedding", "created_at", "updated_at"], inplace=True)
+
+    # retuned the data found
     if len(relevant_data) == 0:
         return {"message": "No closely matching symptoms found"}
     else :
@@ -96,74 +107,49 @@ def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
              history, diagnosed mental disorders), or {"message": "Patient not
              found in database"} if no matching record exists
     """
-    print("TOOL IS USED !")
+    print("///////////////////////////\nget_patient_info tool is used !\n//////////////////////////")
+
+    # get patient_id from the context to retrieve the patient's personal information
     patient_id = runtime.context.user_id
-    thread_id = str(runtime.context.thread_id)
-
-
     patient_info = PatientDAO.get(patient_id)
+
+    # checks if the patient is registered in the database by seeing if the patient_info is not a None value
     if patient_info is not None:
+
+        # we get the patient disorder and symptoms history by the patient_id
         patient_symptom_history=PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)
         patient_disorder_history= PatientDisorderDAO.get_by_patient_id(patient_id=patient_id)
+
+        # combined all the retrieved data into one dictionary to return it
         full_information_dict = {
             "patient_personal_information": patient_info.to_dict(orient="records"),
             "patient_symptoms_history": patient_symptom_history.drop(columns="patient_id").to_dict(orient="records"),
             "patient_disorders_history": patient_disorder_history.drop(columns="patient_id").to_dict(orient="records"),
         }
+
         print(full_information_dict)
+
         return full_information_dict
     else:
         return {"message": "Patient not found in database"}
 
 
-
-
-
 @tool
-def get_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientContext], symptoms: list[dict]):
+def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientContext], symptoms: list[dict]):
     """
-    Retrieves all symptoms and their parent disorders that belong to the same disorder cluster(s)
-    as the given symptoms, excluding any symptoms the patient has already been assessed for
-    (whether confirmed or marked as non-existent). Use this to discover new, unassessed clinically
-    related symptoms and understand their disorder context, enabling smarter and more targeted
-    follow-up questions.
-
-    WHEN TO CALL THIS:
-    - After extracting one or more symptoms from the user's message
-    - When you want to ask a follow-up question grounded in clinical context
-    - When you suspect the user may have related symptoms they haven't described yet
-
-    AGENT INSTRUCTIONS:
-    1. Use 'related_disorders' to understand the clinical context of the symptom cluster
-    2. Use 'related_symptoms' to identify unassessed symptoms the user has NOT yet mentioned
-    3. Cross-reference both to pick the most clinically relevant follow-up question
-    4. NEVER ask about all returned symptoms at once — ask about ONE at a time
-    5. Do NOT reveal symptom or disorder names directly to the user — translate them into
-       natural, conversational language.
-       Example: instead of "Do you experience anhedonia?" ask "Have you found it hard
-       to enjoy things you used to like?"
-    6. If 'related_symptoms' is empty, all related symptoms have already been assessed —
-       broaden your questioning or move to a different disorder cluster.
-
-    :param runtime: The tool runtime context containing the authenticated patient session,
-                    used to fetch the patient's symptom history for filtering
-    :param symptom_ids: List of already extracted symptom IDs to use as reference points
-    :return: A dictionary with two keys:
-             - 'related_disorders': list of disorder records associated with the symptom cluster,
-               each containing disorder_id and disorder_name
-             - 'related_symptoms': deduplicated list of unassessed symptom records, each
-               containing symptom_id, symptom_name, symptom_description, and disorder_id.
-               Empty if all related symptoms have already been assessed.
+    this tool takes the extracted symptoms from the agent, and then saves all the related symptoms in the context list
+    :param runtime:
+    :param symptoms:
+    :return:
     """
 
-    print("get_related_symptoms_and_disorders tool is used !")
+    print("//////////////////////\nget_related_symptoms_and_disorders tool is used !\n//////////////////////")
 
     # get the needed context variables
     patient_id = runtime.context.user_id
     all_related_symptoms = []
 
     for symptom in symptoms:
-
         # first we retrieve the disorder_id from the symptom
         disorder_id = int(symptom["disorder_id"])
 
@@ -171,18 +157,18 @@ def get_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientC
         related_symptoms = SymptomDAO.get_by_disorder(disorder_id=disorder_id)
         all_related_symptoms.append(related_symptoms)
 
-    if not all_related_symptoms:
-        return []
+    if not all_related_symptoms:  # end the tool if there are no related symptoms
+        return
 
-     # combine all symptoms dataframes into one DataFrame
+    # combine all symptoms dataframes into one DataFrame
     combined_symptoms = pd.concat(all_related_symptoms, ignore_index=True)
-    combined_symptoms.drop_duplicates(subset="symptom_id", inplace=True)
+    combined_symptoms.drop_duplicates(subset="symptom_id", inplace=True)  # since there would be a lot of duplicates
 
     # remove unwanted data
     combined_symptoms.drop(columns=["created_at", "updated_at"], inplace=True)
 
     # we remove all the already diagnosed symptoms or the ones that are specified as non-existent (intensity = -1)
-    patient_symptom_history = PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)
+    patient_symptom_history = PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)  # this gets all the patient's symptoms history
     ids_to_drop = patient_symptom_history["symptom_id"].tolist()
     print(ids_to_drop)
     combined_symptoms.drop(combined_symptoms[combined_symptoms["symptom_id"].isin(ids_to_drop)].index, inplace=True)
@@ -192,12 +178,63 @@ def get_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[PatientC
     related_disorders = DisorderDAO.get(disorder_id=disorder_ids)
     related_disorders.drop(columns=["created_at", "updated_at"], inplace=True)
 
+    #conver to list[dict] instead of DataFrame
+    related_disorders_dict = related_disorders.to_dict(orient="records")
+    related_symptoms_dict = combined_symptoms.to_dict(orient="records")
 
+    # for debugging !!!
     result_dict = {
-        "related_disorders": related_disorders.to_dict(orient="records"),
-        "related_symptoms": combined_symptoms.to_dict(orient="records"),
+        "related_disorders": related_disorders_dict,
+        "related_symptoms": related_symptoms_dict,
     }
     print("***********************************************************")
     print(result_dict)
     print("***********************************************************")
-    return result_dict
+
+    # at the end we save each list in the context for the other tools
+    # IMPORTANT: the save happens only if the current values in the context are empty lists
+    if (runtime.context.possible_related_symptoms != []) and (runtime.context.possible_related_disorders != []):
+        runtime.context.possible_related_symptoms = related_symptoms_dict
+        runtime.context.possible_related_disorders = related_disorders_dict
+
+    return
+
+@tool
+def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext]):
+    """
+    this tool is used to get the related symptoms and disorders, and it's the agent role to pick a single symptom from this (if not null ofc)
+    :param runtime:
+    :return:
+    """
+
+    print("get_related_symptoms_and_disorders tool is used !")
+    related_disorders = runtime.context.possible_related_disorders
+    related_symptoms = runtime.context.possible_related_symptoms
+
+    return {
+        "related_disorders": related_disorders,
+        related_symptoms: related_symptoms
+    }
+
+@tool
+def commit_expected_symptom(runtime: ToolRuntime[PatientContext], symptom_id: int):
+    """
+    commit
+    :param runtime:
+    :param symptom_id:
+    :return:
+    """
+    runtime.context.commited_symptom_id_for_making_sure= SymptomDAO.get(symptom_id=symptom_id).to_dict(orient="dict")
+@tool
+def get_expected_symptom(runtime: ToolRuntime[PatientContext]):
+    """
+    gets the exact symptom that's gonna be put on the test
+    :param runtime:
+    :return:
+    """
+    symptom_id = runtime.context.commited_symptom_id_for_making_sure
+    return SymptomDAO.get(symptom_id=symptom_id).to_dict()
+
+@tool
+def is_the_commited_symptoms_exists(runtime: ToolRuntime[PatientContext], exists: bool):
+    return False

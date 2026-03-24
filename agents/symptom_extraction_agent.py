@@ -84,7 +84,7 @@ class SymptomExtractionAgent:
         # this object is going to be passed in the invoke() method
         # this is what's going to specify to the checkpointer what messages to retrieve and where to save
         self.config = {
-            "configurable" : {"thread_id": context.thread_id, "user_id" : context.user_id}
+            "configurable" : {"thread_id": context.thread_id, "user_id" : context.patient_id}
         }
 
         # these variable are used mainly for generating a question that's relevant to the patient
@@ -107,9 +107,9 @@ class SymptomExtractionAgent:
 
         # saving the extracted symptoms according to the user and thread (session)
         _export_extracted_symptoms_to_DB(
-            user_id=self.context.user_id,
+            user_id=self.context.patient_id,
             thread_id=self.context.thread_id,
-            symptoms=structured_response.extracted_symptoms
+            symptoms=structured_response.new_extracted_symptoms
         )
 
         return structured_response

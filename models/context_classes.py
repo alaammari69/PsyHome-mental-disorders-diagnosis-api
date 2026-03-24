@@ -1,21 +1,58 @@
 from dataclasses import dataclass
+from enum import Enum
+
+from models.tool_arguments_schemas import ExtractedSymptomSchema
 
 
 @dataclass
+class Symptom:
+    symptom_id: int
+    symptom_name: str
+    symptom_description: str
+    disorder_id: int
+
+@dataclass
+class Disorder:
+    disorder_id: int
+    category_id: int
+    disorder_name: str
+    dsm_code: str
+    parent_disorder_id: int
+    is_subtype: bool
+
+class StageOfDiagnosis(Enum):
+    START = 1
+    SYMPTOM_EXTRACTION = 2
+    DIAGNOSIS = 3
+
+
 class PatientContext:
-    user_id: int
+
+    # those values are not going to be changed once created a Patient context instance
+    patient_id: int
     thread_id: str
-    possible_related_disorders: list[dict]
-    possible_related_symptoms: list[dict]
 
-    commited_symptom_id_for_making_sure: dict
+    # these values keep changing according to the conversation with the agents
+    user_text: str
+    relevant_symptoms_data: list[Symptom]
+    new_extracted_symptoms: list[ExtractedSymptomSchema]
+    possible_related_disorders: list[Disorder]
+    possible_related_symptoms: list[Symptom]
+    expected_symptom: Symptom
 
-    last_user_text: str
+    # no use (yet)
+    stage_of_diagnosis: StageOfDiagnosis
+
 
     def __init__(self, user_id:int, thread_id:str):
-        self.user_id = user_id # for identifying the patient
+        self.patient_id = user_id # for identifying the patient
         self.thread_id = thread_id # for identifying the thread of what chat history
+        self.new_extracted_symptoms = [] # for temporarily saving the confirmed extracted symptoms by the agent
         self.possible_related_disorders = [] # for keeping track of SUSPECTED disorders
         self.possible_related_symptoms = [] # for keeping track of SUSPECTED symptoms
-        self.commited_symptom_id_for_making_sure = {} # idk how to explain currently
-        self.last_user_text = "" # the last message that the user sent to the agent
+        self.expected_symptom = None # idk how to explain currently
+        self.user_text = "" # the last message that the user sent to the agent
+        self.relevant_symptoms_data = [] # the symptoms which the agent is going to pick from that are present in the patient
+        self.stage_of_diagnosis = StageOfDiagnosis.START
+
+

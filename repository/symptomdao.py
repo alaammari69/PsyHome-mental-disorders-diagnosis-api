@@ -47,8 +47,6 @@ class SymptomDAO:
         engine = DBConnector().get_engine()
         symptoms_df = pandas.read_sql(query, engine, params=params)
 
-        symptoms_df.drop(["embedding"], axis=1, inplace=True)
-
         return symptoms_df
 
     @staticmethod

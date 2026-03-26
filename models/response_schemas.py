@@ -9,4 +9,3 @@ class ExtractedSymptomSchema(BaseModel):
 class SymptomExtractionAgentResponse(BaseModel):
     """schema for the extracted symptoms from the conversation with the follow-up question"""
     response: str = Field(description="The response to the patient in a format of a follow up question")
-    extracted_symptoms : list[ExtractedSymptomSchema] = Field(description="list of the extracted symptoms from the conversation (could be empty if no symptoms could be extracted)")

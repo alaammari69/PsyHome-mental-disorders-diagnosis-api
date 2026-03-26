@@ -17,7 +17,7 @@ class Disorder:
     category_id: int
     disorder_name: str
     dsm_code: str
-    parent_disorder_id: int
+    parent_disorder_id: int|None
     is_subtype: bool
 
 class StageOfDiagnosis(Enum):

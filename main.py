@@ -15,7 +15,7 @@ HuggingFaceEmbedder.get_embedder()
 if __name__ == '__main__':
     context = PatientContext(
         user_id=3,
-        thread_id="22",
+        thread_id="34",
     )
 
     custom_agent = SymptomExtractionAgent(
@@ -32,7 +32,6 @@ if __name__ == '__main__':
                 print(f"AI Assistant: {msg.content}\n")
 
     result = custom_agent.reset_session()
-    print(result.extracted_symptoms)
     print(result.response)
     while True:
 
@@ -40,5 +39,5 @@ if __name__ == '__main__':
         if user_message == "exit":
             break
         result = custom_agent.send_human_message(user_message)
-        print(result.extracted_symptoms)
+        #print(result)
         print(f"AI Assistant: {result.response}")

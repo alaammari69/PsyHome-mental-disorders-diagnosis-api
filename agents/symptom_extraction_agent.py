@@ -1,19 +1,19 @@
-import psycopg
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langchain_core.messages import SystemMessage, ToolMessage, AIMessage
+from langchain_core.messages import SystemMessage, AIMessage
 
 from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna handle all the saving and reloading of the messages automatically
 
 from langchain.messages import HumanMessage
 
-from agents.custom_tools import get_patient_info, get_relevant_symptoms_data, extract_related_undiagnosed_symptoms_and_disorders
+from agents.custom_tools import get_patient_info, get_relevant_symptoms_data, \
+    extract_related_undiagnosed_symptoms_and_disorders, save_user_text, get_expected_symptoms, \
+    is_expected_symptom_confirmed, save_extracted_symptoms, is_diagnosis_stage, get_related_symptoms_and_disorders, \
+    commit_expected_symptom
 from ml_models.llms import LLMModels
 from models.context_classes import PatientContext
-from models.response_schemas import SymptomExtractionAgentResponse, ExtractedSymptomSchema
+from models.response_schemas import SymptomExtractionAgentResponse
 from prompts.custom_templates import symptom_extraction_prompt
-
-from repository.patient_symptoms_dao import PatientSymptomDAO
 
 from rich import print
 
@@ -33,32 +33,6 @@ def _create_checkpointer()-> PostgresSaver:
     checkpointer.setup()
     return checkpointer
 
-def _export_extracted_symptoms_to_DB(user_id:int, thread_id: str, symptoms: list[ExtractedSymptomSchema])->bool:
-    """
-    this method is used to save extracted symptoms to the DB
-    :param user_id: user id
-    :param thread_id: thread or session id
-    :param symptoms: list of symptoms from the structured output of the agent
-    :return:
-    """
-    try:
-        if symptoms is None:
-            print("No symptoms to save")
-            return True
-
-        for symptom in symptoms:
-            PatientSymptomDAO.insert_or_update_max_intensity(
-                patient_id=user_id,
-                symptom_id=int(symptom.symptom_id),
-                thread_id=thread_id,
-                intensity=int(symptom.symptom_existence)
-            )
-        return True
-    except Exception as e:
-        print("saving symptoms failed")
-        print(e)
-        return False
-
 class SymptomExtractionAgent:
 
     def __init__(self, context: PatientContext):
@@ -73,7 +47,18 @@ class SymptomExtractionAgent:
         self.checkpointer = _create_checkpointer()
         self.agent = create_agent(
             model=LLMModels.get_deepseek_llm_model(), # using deepseek as the main model (BaseModel)
-            tools=[get_patient_info, get_relevant_symptoms_data],# passing the tools that are only for extracting symptoms (still working on other tools...)
+            tools=[
+                get_patient_info,
+                save_user_text,
+                get_expected_symptoms,
+                is_expected_symptom_confirmed,
+                get_relevant_symptoms_data,
+                save_extracted_symptoms,
+                extract_related_undiagnosed_symptoms_and_disorders,
+                is_diagnosis_stage,
+                get_related_symptoms_and_disorders,
+                commit_expected_symptom
+            ],# passing the tools that are only for extracting symptoms (still working on other tools...)
             context_schema=PatientContext, # the schema of the context (not the context itself, it's going to be passed in the invoke() method)
             response_format= ToolStrategy(SymptomExtractionAgentResponse),# the schema which the response should be in (the output is a structured response)
             checkpointer=self.checkpointer, # responsible for managing the memory automatically
@@ -103,16 +88,8 @@ class SymptomExtractionAgent:
             config=self.config
         )
         # extracting the structured format of the response
-        structured_response = response["structured_response"]
-
-        # saving the extracted symptoms according to the user and thread (session)
-        _export_extracted_symptoms_to_DB(
-            user_id=self.context.patient_id,
-            thread_id=self.context.thread_id,
-            symptoms=structured_response.new_extracted_symptoms
-        )
-
-        return structured_response
+        #print(response)
+        return response["structured_response"]
 
     def send_system_message(self, developer_prompt: str)->SymptomExtractionAgentResponse:
         response = self.agent.invoke(
@@ -130,7 +107,7 @@ class SymptomExtractionAgent:
         and greet the user again
         :return: a response to the user
         """
-        return self.send_system_message("SESSION_RESET")
+        return self.send_system_message("__SESSION_INIT__")
 
     def get_all_messages(self):
         """

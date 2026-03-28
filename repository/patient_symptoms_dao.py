@@ -2,6 +2,7 @@ import pandas
 from pandas import DataFrame
 from sqlalchemy import text
 
+from models.custom_enums import SymptomLikelihood
 from repository.dbconnector import DBConnector
 
 
@@ -64,18 +65,17 @@ class PatientSymptomDAO:
         engine = DBConnector().get_engine()
         return pandas.read_sql(query, engine, params=params)
 
-
     @staticmethod
-    def insert(patient_id: int, thread_id: str, symptom_id: int, intensity: int):
+    def insert(patient_id: int, thread_id: str, symptom_id: int, confidence: int):
         try:
             query = text("""
-                INSERT INTO patient_symptoms (patient_id, symptom_id, intensity, thread_id)
-                VALUES (:patient_id, :symptom_id, :intensity, :thread_id)
-            """)
+                         INSERT INTO patient_symptoms (patient_id, symptom_id, confidence, thread_id)
+                         VALUES (:patient_id, :symptom_id, :confidence, :thread_id)
+                         """)
             params = {
                 "patient_id": patient_id,
                 "symptom_id": symptom_id,
-                "intensity": intensity,
+                "confidence": likelihood_to_str(confidence),  # key change
                 "thread_id": thread_id
             }
             engine = DBConnector().get_engine()
@@ -125,17 +125,19 @@ class PatientSymptomDAO:
             return False
 
     @staticmethod
-    def update (patient_id: int, symptom_id: int, thread_id: str, intensity: int)->bool:
+    def update(patient_id: int, symptom_id: int, thread_id: str, confidence: int) -> bool:
         try:
             query = text("""
-                UPDATE patient_symptoms
-                SET intensity = :intensity, thread_id = :thread_id
-                where patient_id = :patient_id and symptom_id = :symptom_id
-                """)
+                         UPDATE patient_symptoms
+                         SET confidence = :confidence,
+                             thread_id  = :thread_id
+                         WHERE patient_id = :patient_id
+                           AND symptom_id = :symptom_id
+                         """)
             params = {
                 "patient_id": patient_id,
                 "symptom_id": symptom_id,
-                "intensity": intensity,
+                "confidence": likelihood_to_str(confidence),
                 "thread_id": thread_id
             }
             engine = DBConnector().get_engine()
@@ -148,50 +150,38 @@ class PatientSymptomDAO:
             return False
 
     @staticmethod
-    def insert_or_update_max_intensity(patient_id: int, symptom_id: int, thread_id: str, intensity: int)->bool:
-        """
-        This method is used to always save the max intensity value for a symptom
-        if a symptom isn't stored yet, then it inserts it automatically
-        :param patient_id: the patient id or user id
-        :param symptom_id: symptom id
-        :param thread_id: thread id or session id
-        :param intensity: a value of the symptom existence (0-10)
-        :return: true if no errors occurred
-        """
+    def insert_or_update_max_confidence(patient_id: int, symptom_id: int, thread_id: str, confidence: int) -> bool:
         try:
-            # first trying to retrieve the same symptom if it exists according to the patient(user) or session
-            existing_symptom = PatientSymptomDAO.get_by_patient_symptom_id(
+            existing = PatientSymptomDAO.get_by_patient_symptom_id(
                 patient_id=patient_id,
                 symptom_id=symptom_id
             )
 
-            # if the symptom have never been registered then it inserts it and then work done
-            if existing_symptom is None or existing_symptom.empty:
+            if existing is None or existing.empty:
                 print("adding new symptom")
                 return PatientSymptomDAO.insert(
                     patient_id=patient_id,
                     thread_id=thread_id,
                     symptom_id=symptom_id,
-                    intensity=intensity
+                    confidence=confidence
                 )
-            # if the symptom is already registered, we check if the new intensity is higher than the older one
-            # (it means that we called this method a second time with the same parameters but the agent is more sure about the existence of this symptom)
             else:
-                current_intensity = int(existing_symptom["intensity"].iloc[0])
+                # DB returns ENUM as string → convert to IntEnum
+                current_conf_str = existing["confidence"].iloc[0]
+                current_conf = SymptomLikelihood[current_conf_str].value
 
-                print("New intensity:", intensity)
-                print("Existing intensity:", current_intensity)
+                print("New confidence:", confidence)
+                print("Existing confidence:", current_conf)
 
-                if intensity > current_intensity:
-                    print("updating intensity...")
-                    print(existing_symptom)
+                if confidence > current_conf:
+                    print("updating confidence...")
                     return PatientSymptomDAO.update(
                         patient_id=patient_id,
                         thread_id=thread_id,
                         symptom_id=symptom_id,
-                        intensity=intensity
+                        confidence=confidence
                     )
-            # in this case the intensity is lower than the original value then we just leave it
+
             print("nothing is updated")
             return True
 
@@ -200,5 +190,6 @@ class PatientSymptomDAO:
             return False
 
 
-
+def likelihood_to_str(value: int) -> str:
+    return SymptomLikelihood(value).name
 

@@ -15,7 +15,7 @@ HuggingFaceEmbedder.get_embedder()
 if __name__ == '__main__':
     context = PatientContext(
         user_id=3,
-        thread_id="34",
+        thread_id="36",
     )
 
     custom_agent = SymptomExtractionAgent(

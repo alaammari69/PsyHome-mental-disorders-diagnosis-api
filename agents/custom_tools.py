@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolRuntime
 
 from embedder.embedders import HuggingFaceEmbedder
 from models.context_classes import PatientContext, Symptom, Disorder, StageOfDiagnosis
+from models.custom_enums import SymptomLikelihood
 from models.tool_arguments_schemas import SaveExtractedSymptomsArgs, ExtractedSymptomSchema
 from repository.patient_dao import PatientDAO
 from repository.patient_disorders_dao import PatientDisorderDAO
@@ -24,6 +25,10 @@ debugMode = True
 def print_debug(obj)->None:
     if debugMode:
         print(obj)
+
+#********************************************************************************************************************
+#********************************************SYMPTOM_EXTRACTION_AGENT TOOLS******************************************
+#********************************************************************************************************************
 
 @tool
 def get_patient_info(runtime: ToolRuntime[PatientContext]) -> dict:
@@ -80,7 +85,7 @@ def save_user_text(runtime: ToolRuntime[PatientContext], user_prompt: str)->None
     print_debug(f"user_text : {runtime.context.user_text} -> SAVED")
 
 @tool
-def get_expected_symptoms(runtime: ToolRuntime[PatientContext])->Symptom|None:
+def get_expected_symptom(runtime: ToolRuntime[PatientContext])-> Symptom | None:
     """
     Returns the currently pending symptom from the session context.
 
@@ -98,14 +103,19 @@ def get_expected_symptoms(runtime: ToolRuntime[PatientContext])->Symptom|None:
     return expected_symptom
 
 @tool
-def is_expected_symptom_confirmed(runtime: ToolRuntime[PatientContext], confirmation: bool)->None:
+def is_expected_symptom_confirmed(runtime: ToolRuntime[PatientContext], confirmation: str)->None:
     """
-    Records whether the pending symptom was confirmed or denied by the patient.
+    Records the agent's confidence assessment of the pending symptom based on
+    the patient's response, then saves the result and clears the pending symptom.
 
-    Saves the result to the database and clears the pending symptom from context.
     Has no effect if no symptom is currently pending.
 
-    :param confirmation: True if the patient confirmed the symptom, False if denied.
+    :param confirmation: Confidence level as a string. Must be one of:
+                         ABSENT    - patient explicitly denied it
+                         UNLIKELY  - patient contradicts or pushes back
+                         NEUTRAL   - unclear, ambiguous, or patient unsure
+                         LIKELY    - implied by tone, context, or partially confirmed
+                         CONFIRMED - explicitly and clearly stated by patient
     :return: None
     """
     print_debug("////////////////////////\nis_expected_symptom_confirmed tool is used !\n")
@@ -114,25 +124,21 @@ def is_expected_symptom_confirmed(runtime: ToolRuntime[PatientContext], confirma
     expected_symptom = runtime.context.expected_symptom
 
     if expected_symptom is not None:
-        # either fully confirmed or denied
-        if confirmation:
-            intensity = 10
-        else:
-            intensity = 0
 
         # get the other necessary values
         patient_id = runtime.context.patient_id
         thread_id = runtime.context.thread_id
         symptom_id = expected_symptom.symptom_id
+        confidence = SymptomLikelihood[confirmation].value
 
-        print_debug(f"symptom in question {symptom_id} : intensity {intensity}")
+        print_debug(f"symptom in question {symptom_id} : confidence {confidence}")
 
         # save in the DataBase
-        PatientSymptomDAO.insert_or_update_max_intensity(
+        PatientSymptomDAO.insert_or_update_max_confidence(
             patient_id=patient_id,
             thread_id=thread_id,
             symptom_id=symptom_id,
-            intensity=intensity
+            confidence=confidence
         )
         runtime.context.expected_symptom = None
     else:
@@ -206,12 +212,14 @@ def get_relevant_symptoms_data(runtime: ToolRuntime[PatientContext]) -> dict:
 @tool(args_schema=SaveExtractedSymptomsArgs)
 def save_extracted_symptoms(runtime: ToolRuntime[PatientContext],extracted_symptoms: list[ExtractedSymptomSchema]) -> None:
     """
-    Saves the agent-identified symptoms to the session context and database.
+    Saves the agent's confidence assessment for all evaluated symptoms to
+    the session context and database.
 
-    Each symptom must include a symptom_id and an intensity score (0-10).
-    Overwrites any previously extracted symptoms from the current turn.
+    Every symptom returned by get_relevant_symptoms_data should be included
+    here with an appropriate confidence level — not just the ones that seem
+    present. ABSENT and UNLIKELY grades are as valuable as CONFIRMED ones.
 
-    :param extracted_symptoms: List of symptoms identified from the conversation.
+    :param extracted_symptoms: All evaluated symptoms with their confidence grades.
     :return: None
     """
     print_debug("//////////////////////\nsave_extracted_symptoms tool is used !\n")
@@ -226,11 +234,11 @@ def save_extracted_symptoms(runtime: ToolRuntime[PatientContext],extracted_sympt
 
     if extracted_symptoms:
         for symptom in extracted_symptoms:
-            PatientSymptomDAO.insert_or_update_max_intensity(
+            PatientSymptomDAO.insert_or_update_max_confidence(
                 patient_id=patient_id,
                 thread_id=thread_id,
                 symptom_id=symptom.symptom_id,
-                intensity=symptom.intensity
+                confidence=SymptomLikelihood[symptom.symptom_confidence].value
             )
 
 
@@ -258,8 +266,8 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
 
     for _, symptom in all_extracted_symptoms_df.iterrows():
 
-        # we only extract related symptoms of confirmed existing ones
-        if symptom["intensity"] != 0:
+        # we extract related symptoms of likely existing ones
+        if SymptomLikelihood[symptom["confidence"]] >= SymptomLikelihood.LIKELY:
 
             # first we retrieve the disorder_id from the symptom
             symptom_id = int(symptom["symptom_id"])
@@ -284,7 +292,7 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
     # remove unwanted data
     combined_symptoms.drop(columns=["created_at", "updated_at", "embedding"], inplace=True)
 
-    # we remove all the already diagnosed symptoms or the ones that are specified as non-existent (intensity = 0)
+    # we remove all the already diagnosed symptoms
     patient_symptom_history = PatientSymptomDAO.get_by_patient_id(patient_id=patient_id)  # this gets all the patient's symptoms history
     ids_to_drop = patient_symptom_history["symptom_id"].tolist()
     print_debug(f"ids to drop: {ids_to_drop}")
@@ -351,7 +359,7 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
 @tool
 def is_diagnosis_stage(runtime: ToolRuntime[PatientContext])->str:
     """
-    Returns the current stage of the diagnostic session.
+    Returns the current stage of the diagnostic session. (future implementation)
 
     :return: "DIAGNOSIS_STAGE_REACHED" if all symptoms have been addressed,
              "CONTINUE" if symptom extraction is still in progress.
@@ -412,3 +420,10 @@ def commit_expected_symptom(runtime: ToolRuntime[PatientContext], expected_sympt
         print_debug(runtime.context.expected_symptom)
 
         return runtime.context.expected_symptom
+    else:
+        return None
+
+
+#********************************************************************************************************************
+#********************************************SYMPTOM_EXTRACTION_AGENT TOOLS******************************************
+#********************************************************************************************************************

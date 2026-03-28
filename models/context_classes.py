@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from models.tool_arguments_schemas import ExtractedSymptomSchema
+from pydantic import BaseModel, Field, conint
 
 
 @dataclass
@@ -25,6 +25,15 @@ class StageOfDiagnosis(Enum):
     SYMPTOM_EXTRACTION = 2
     DIAGNOSIS = 3
 
+class ExtractedSymptomSchema(BaseModel):
+    """the extracted symptom information"""
+    symptom_id: int = Field(description="The symptom identifier of the patient from the given data")
+    symptom_name: str = Field(description="The name of the symptom from the given data")
+    symptom_confidence: str = Field(description="""The how certain is the symptom from the given data   - ABSENT    → patient explicitly denied it
+  - UNLIKELY  → patient seems to contradict or push back against it
+  - NEUTRAL   → unclear, ambiguous, or patient is unsure
+  - LIKELY    → implied by tone, context, or partially confirmed
+  - CONFIRMED → explicitly and clearly stated by the patient""")
 
 class PatientContext:
 

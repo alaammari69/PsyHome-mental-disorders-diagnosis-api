@@ -7,7 +7,7 @@ from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna ha
 from langchain.messages import HumanMessage
 
 from agents.custom_tools import get_patient_info, get_relevant_symptoms_data, \
-    extract_related_undiagnosed_symptoms_and_disorders, save_user_text, get_expected_symptoms, \
+    extract_related_undiagnosed_symptoms_and_disorders, save_user_text, get_expected_symptom, \
     is_expected_symptom_confirmed, save_extracted_symptoms, is_diagnosis_stage, get_related_symptoms_and_disorders, \
     commit_expected_symptom
 from ml_models.llms import LLMModels
@@ -50,7 +50,7 @@ class SymptomExtractionAgent:
             tools=[
                 get_patient_info,
                 save_user_text,
-                get_expected_symptoms,
+                get_expected_symptom,
                 is_expected_symptom_confirmed,
                 get_relevant_symptoms_data,
                 save_extracted_symptoms,

@@ -167,13 +167,15 @@ class PatientSymptomDAO:
                 )
             else:
                 # DB returns ENUM as string → convert to IntEnum
+                current_symptom_name = existing["symptom_name"]
                 current_conf_str = existing["confidence"].iloc[0]
                 current_conf = SymptomLikelihood[current_conf_str].value
 
+                print("symptom name is: ", current_symptom_name)
                 print("New confidence:", confidence)
-                print("Existing confidence:", current_conf)
+                print("Existing confidence:", current_conf,"\n")
 
-                if confidence > current_conf:
+                if (confidence > current_conf) and (current_conf != SymptomLikelihood.NEUTRAL):
                     print("updating confidence...")
                     return PatientSymptomDAO.update(
                         patient_id=patient_id,

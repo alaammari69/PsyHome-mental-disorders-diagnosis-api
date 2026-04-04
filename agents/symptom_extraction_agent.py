@@ -1,3 +1,5 @@
+import os
+
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain_core.messages import SystemMessage, AIMessage
@@ -13,11 +15,12 @@ from agents.custom_tools import get_patient_info, get_relevant_symptoms_data, \
 from ml_models.llms import LLMModels
 from models.context_classes import PatientContext
 from models.response_schemas import SymptomExtractionAgentResponse
-from prompts.custom_templates import symptom_extraction_prompt
+from prompts.custom_templates import symptom_extraction_prompt_template
 
-from rich import print
+from dotenv import load_dotenv
 
 from repository.dbconnector import DBConnector
+
 
 
 def _create_checkpointer()-> PostgresSaver:
@@ -36,6 +39,18 @@ def _create_checkpointer()-> PostgresSaver:
 class SymptomExtractionAgent:
 
     def __init__(self, context: PatientContext):
+        load_dotenv() # first we load the environment variables
+        end_conversation_trigger = os.getenv("SYS_ABORT_SIGNAL_END_OF_CONVERSATION")
+        end_conversation_code = os.getenv("EXIT_CODE_END_OF_CONVERSATION")
+
+        # prepare the system prompt with all the codes and flags from the .env
+        system_prompt = symptom_extraction_prompt_template.format(
+            end_signal=end_conversation_trigger,
+            exit_code=end_conversation_code
+        )
+
+        #print(system_prompt)
+
         # the context has the necessary values for the constructor (user_id and sessio_id)
         # to create an agent with the right parameters
         self.context = context
@@ -62,7 +77,7 @@ class SymptomExtractionAgent:
             context_schema=PatientContext, # the schema of the context (not the context itself, it's going to be passed in the invoke() method)
             response_format= ToolStrategy(SymptomExtractionAgentResponse),# the schema which the response should be in (the output is a structured response)
             checkpointer=self.checkpointer, # responsible for managing the memory automatically
-            system_prompt=symptom_extraction_prompt # a prompt for the agent containing the instructions
+            system_prompt=system_prompt # a prompt for the agent containing the instructions
         )
 
         # IMPORTANT FOR THE MEMORY (CHECKPOINTER)

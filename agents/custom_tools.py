@@ -277,14 +277,14 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
             related_symptoms = SymptomDAO.get_by_disorder(disorder_id=disorder_id)
             all_related_symptoms.append(related_symptoms)
 
-
-    # combine all symptoms dataframes into one DataFrame
-
-    # in case no related symptoms found (the only time this would be true is at the beginning
-    # when the patient is still never had a symptom extracted
+    #************************************
     if not all_related_symptoms:
-        runtime.context.stage_of_diagnosis = StageOfDiagnosis.DIAGNOSIS
-        return
+        if runtime.context.stage_of_diagnosis == StageOfDiagnosis.START:  # in this case the symptom extraction stage is still in the beginning and we havn't extracted any symptom yes
+            return  # we end without modifying the stage
+        else:  # this means that currently we were in the SYMPTOM_EXTRACTION stage, and now there are n symptoms left to ask about so we move to diagnosis stage
+            runtime.context.stage_of_diagnosis = StageOfDiagnosis.DIAGNOSIS
+            return
+    #***********************************
 
     combined_symptoms = pd.concat(all_related_symptoms, ignore_index=True)
     combined_symptoms.drop_duplicates(subset="symptom_id", inplace=True)  # since there would be a lot of duplicates
@@ -298,13 +298,11 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
     print_debug(f"ids to drop: {ids_to_drop}")
     combined_symptoms.drop(combined_symptoms[combined_symptoms["symptom_id"].isin(ids_to_drop)].index, inplace=True)
 
-
-
     # at the end we save each list in the context for the other tools
     # IMPORTANT: the save happens only if the current possible_related_symptoms value in the context is NOT empty list
     if not combined_symptoms.empty:
 
-        # we use this trigger to follow if we actually updated the lists with new values or not
+        # we set the stage of diagnosis to SYMPTOM_EXTRACTION
         runtime.context.stage_of_diagnosis = StageOfDiagnosis.SYMPTOM_EXTRACTION
 
         # get all the related disorders (to allow the agent for a better decision-making to pick the next question)
@@ -337,12 +335,13 @@ def extract_related_undiagnosed_symptoms_and_disorders(runtime: ToolRuntime[Pati
                 symptom_description=related_symptom["symptom_description"]
             )
         ),axis=1)
-    else: # this means that there are no related symptoms left to ask for (they all either confirmed or discarded)
+    else: # this means that there are no related symptoms to ask for (they all either confirmed or discarded)
 
-        # we change the state so we can signal that we should move to the diagnosis step
-        if runtime.context.stage_of_diagnosis == StageOfDiagnosis.SYMPTOM_EXTRACTION:
+        if runtime.context.stage_of_diagnosis == StageOfDiagnosis.START: # in this case the symptom extraction stage is still in the beginning and we havn't extracted any symptom yes
+            return # we end without modifying the stage
+        else: # this means that currently we were in the SYMPTOM_EXTRACTION stage, and now there are n symptoms left to ask about so we move to diagnosis stage
             runtime.context.stage_of_diagnosis = StageOfDiagnosis.DIAGNOSIS
-        return
+            return
 
     #conver to list[dict] instead of DataFrame
     related_disorders_dict = related_disorders.to_dict(orient="records")
@@ -361,12 +360,20 @@ def is_diagnosis_stage(runtime: ToolRuntime[PatientContext])->str:
     """
     Returns the current stage of the diagnostic session. (future implementation)
 
-    :return: "DIAGNOSIS_STAGE_REACHED" if all symptoms have been addressed,
+    :return: exit_conversation_signal if all symptoms have been addressed,
              "CONTINUE" if symptom extraction is still in progress.
     """
     print_debug("////////////////////////\nis_diagnosis_stage tool is used !\n")
-    print_debug("CONTINUE")
-    return "CONTINUE"
+
+    stage_of_diagnosis = runtime.context.stage_of_diagnosis # get the stage of diagnosis
+    exit_conversation_signal = os.getenv("SYS_ABORT_SIGNAL_END_OF_CONVERSATION") # get the exit signal in case of end of symptom extraction phase
+
+    if stage_of_diagnosis == StageOfDiagnosis.DIAGNOSIS:
+        print_debug("exiting conversation ...")
+        return exit_conversation_signal
+    else:
+        print_debug("continuing conversation ...")
+        return "CONTINUE"
 
 @tool
 def get_related_symptoms_and_disorders(runtime: ToolRuntime[PatientContext]):
@@ -427,3 +434,41 @@ def commit_expected_symptom(runtime: ToolRuntime[PatientContext], expected_sympt
 #********************************************************************************************************************
 #********************************************SYMPTOM_EXTRACTION_AGENT TOOLS******************************************
 #********************************************************************************************************************
+
+@tool
+def get_related_disorders_and_symptoms(disorder_ids: list[int]) -> dict | None:
+    """
+    Fetches the full details of disorders and all their associated symptoms
+    for a given list of disorder IDs.
+
+    Returns a dict keyed by disorder_id, where each value contains the full
+    disorder record and the complete list of symptoms belonging to it.
+    Use this to get the clinical definitions needed to reason about a diagnosis.
+
+    :param disorder_ids: List of disorder IDs to look up.
+    :return: dict keyed by disorder_id, each containing:
+             - 'disorder' : full disorder record as dict
+             - 'symptoms' : list of all symptoms for that disorder as dicts
+             Returns None if disorder_ids is empty.
+    """
+    if disorder_ids:
+        disorders = []
+        symptoms = []
+
+        final_result = {}
+
+        # get the disorders
+        for disorder_id in disorder_ids:
+            disorder = DisorderDAO.get(disorder_id=disorder_id).drop(columns=["created_at","updated_at"]).to_dict()
+            # get all the symptoms for each disorder
+            symptoms = SymptomDAO.get_by_disorder(disorder_id=disorder_id).drop(columns=["embedding","created_at","updated_at"]).to_dict(orient="records")
+
+            final_result[disorder_id] = {
+                "disorder": disorder,
+                "symptoms": symptoms
+            }
+        print_debug("final result:")
+        print_debug(final_result)
+
+        return final_result
+    return None

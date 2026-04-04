@@ -6,7 +6,7 @@ from agents.custom_tools import get_relevant_symptoms_data, get_patient_info
 from embedder.embedders import HuggingFaceEmbedder
 from ml_models.llms import LLMModels
 from models.context_classes import PatientContext
-from prompts.custom_templates import symptom_extraction_prompt
+from prompts.custom_templates import symptom_extraction_prompt_template
 from models.response_schemas import SymptomExtractionAgentResponse
 
 HuggingFaceEmbedder.get_embedder()
@@ -30,7 +30,7 @@ conversation = {
 user_prompt = ""
 while True:
 
-    prompt = symptom_extraction_prompt.format(
+    prompt = symptom_extraction_prompt_template.format(
         conversation = conversation
     )
 

@@ -1,5 +1,8 @@
-from prompts import system_prompts
+from langchain_core.prompts import PromptTemplate
 
-symptom_extraction_prompt = "\n".join([
-    system_prompts.symptom_extraction_prompt
-])
+from prompts.system_prompts import symptom_extraction_prompt
+
+symptom_extraction_prompt_template = PromptTemplate(
+    input_variables=['end_signal','exit_code'],
+    template=symptom_extraction_prompt,
+)

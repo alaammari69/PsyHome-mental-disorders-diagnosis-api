@@ -451,6 +451,8 @@ def get_related_disorders_and_symptoms(disorder_ids: list[int]) -> dict | None:
              - 'symptoms' : list of all symptoms for that disorder as dicts
              Returns None if disorder_ids is empty.
     """
+    print_debug("//////////////////////\nget_related_disorders_and_symptoms tool is used !\n")
+
     if disorder_ids:
         disorders = []
         symptoms = []
@@ -467,7 +469,6 @@ def get_related_disorders_and_symptoms(disorder_ids: list[int]) -> dict | None:
                 "disorder": disorder,
                 "symptoms": symptoms
             }
-        print_debug("final result:")
         print_debug(final_result)
 
         return final_result

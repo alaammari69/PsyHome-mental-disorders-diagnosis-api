@@ -9,8 +9,11 @@ from models.context_classes import PatientContext
 from dotenv import load_dotenv
 from rich import print
 from embedder.embedders import HuggingFaceEmbedder
+from repository.diagnosisdao import DiagnosisDAO
 from repository.patient_dao import PatientDAO
 from repository.patient_symptoms_dao import PatientSymptomDAO
+
+from devtools import debug
 
 load_dotenv()
 
@@ -23,7 +26,7 @@ if __name__ == '__main__':
 
     context = PatientContext(
         user_id=2,
-        thread_id="36",
+        thread_id="50",
     )
 
     symptom_extraction_agent = SymptomExtractionAgent(
@@ -42,7 +45,17 @@ if __name__ == '__main__':
     result = symptom_extraction_agent.reset_session()
     print(result.response)
 
-
+    # *******************************
+    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    diagnosis_agent = DiagnosisAgent()
+    diagnosis_agent.load_patient_info(PatientDAO.get(patient_id=context.patient_id).to_dict(orient="records"))
+    diagnosis_agent.load_chat_history(messages=messages)
+    diagnosis_agent.load_patient_symptoms(PatientSymptomDAO.get_by_patient_id(patient_id=context.patient_id)) # dataframe of patient symptoms
+    diagnosis = diagnosis_agent.generate_diagnosis()
+    DiagnosisDAO.create(diagnosis)
+    debug(diagnosis)
+    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    # *******************************
 
     while True:
 
@@ -54,12 +67,14 @@ if __name__ == '__main__':
         print(f"AI Assistant: {result.response}")
 
         if exit_code in result.response:
+            messages = symptom_extraction_agent.get_previous_conversation()
             # *******************************
             print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
             diagnosis_agent = DiagnosisAgent()
             diagnosis_agent.load_patient_info(PatientDAO.get(patient_id=context.patient_id).to_dict(orient="records"))
             diagnosis_agent.load_chat_history(messages=messages)
             diagnosis_agent.load_patient_symptoms(PatientSymptomDAO.get_by_patient_id(patient_id=context.patient_id).to_dict(orient="records"))
+
             diagnosis = diagnosis_agent.generate_diagnosis()
             print(diagnosis)
             print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")

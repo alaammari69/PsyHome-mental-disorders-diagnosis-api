@@ -10,19 +10,20 @@ class PatientThreadDAO:
         raise TypeError("cannot instantiate class PatientThreadDAO")
 
     @staticmethod
-    def add_thread(patient_id: int, thread_id: int, code: str, status: bool = True) -> int | None:
+    def add_thread(patient_id: int, thread_id: int, code: str, additional_info: str = None ,status: bool = True) -> int | None:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
                 result = conn.execute(text("""
-                    INSERT INTO patient_thread (patient_id, thread_id, code, status)
-                    VALUES (:patient_id, :thread_id, :code, :status)
+                    INSERT INTO patient_thread (patient_id, thread_id, code, status, additional_info)
+                    VALUES (:patient_id, :thread_id, :code, :status, :additional_info)
                     RETURNING id
                 """), parameters={
                     "patient_id": patient_id,
                     "thread_id": thread_id,
                     "code": code,
-                    "status": status
+                    "status": status,
+                    "additional_info": additional_info
                 })
                 conn.commit()
                 return result.fetchone()[0]
@@ -68,3 +69,52 @@ class PatientThreadDAO:
         except Exception as e:
             print(e)
             return False
+
+    @staticmethod
+    def nbr_threads_per_patient(patient_id: int) -> int | None:
+        try:
+            engine = DBConnector().get_engine()
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                SELECT COUNT(*) AS nbr_threads
+                from patient_thread
+                where patient_id = :patient_id
+                """), parameters={"patient_id": patient_id})
+                conn.commit()
+                return result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            return None
+
+
+
+    @staticmethod
+    def nbr_active_threads_per_patient(patient_id: int) -> int | None:
+        try:
+            engine = DBConnector().get_engine()
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                SELECT COUNT(*) AS nbr_threads
+                from patient_thread
+                where patient_id = :patient_id and status = TRUE
+                """), parameters={"patient_id": patient_id})
+                conn.commit()
+                return result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            return None
+
+    @staticmethod
+    def last_session_date(patient_id: int):
+        try:
+            engine = DBConnector().get_engine()
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                select MAX(created_at) AS last_session_date
+                from patient_thread
+                where patient_id = :patient_id"""), parameters={"patient_id": patient_id})
+                conn.commit()
+                return result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            return None

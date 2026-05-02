@@ -191,6 +191,21 @@ class PatientSymptomDAO:
             print(e)
             return False
 
+    @staticmethod
+    def get_patient_symptoms_full_description(patient_id: int)->DataFrame|None:
+        try:
+            query = text("""
+                SELECT ps.*, s.*
+                FROM patient_symptoms ps JOIN symptoms s ON ps.symptom_id = s.symptom_id
+                WHERE ps.patient_id = :patient_id
+            """)
+            params = {"patient_id": patient_id}
+            engine = DBConnector().get_engine()
+            return pandas.read_sql(query, engine, params=params)
+        except Exception as e:
+            print(e)
+            return None
+
 
 def likelihood_to_str(value: int) -> str:
     return SymptomLikelihood(value).name

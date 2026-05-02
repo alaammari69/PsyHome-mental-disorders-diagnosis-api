@@ -11,47 +11,69 @@ class DiagnosisDAO:
         raise TypeError("cannot instantiate class DiagnosisDAO")
 
     @staticmethod
-    def get(diagnosis_id: int) -> DataFrame:
+    def get(diagnosis_id: int) -> dict | None:
         engine = DBConnector().get_engine()
         query = text("""
-            SELECT 
-                d.*,
-                dd.id as diagnosis_disorder_id,
-                dd.disorder_id,
-                dd.percentage,
-                dd.explanation,
-                array_agg(DISTINCT dds.symptom_id) FILTER (WHERE dds.symptom_id IS NOT NULL) as supporting_symptom_ids,
-                array_agg(DISTINCT ddc.symptom_id) FILTER (WHERE ddc.symptom_id IS NOT NULL) as contradicting_symptom_ids
-            FROM diagnosis d
-            LEFT JOIN diagnosis_disorder dd ON d.id = dd.diagnosis_id
-            LEFT JOIN diagnosis_disorder_supporting_symptom dds ON dd.id = dds.diagnosis_disorder_id
-            LEFT JOIN diagnosis_disorder_contradicting_symptom ddc ON dd.id = ddc.diagnosis_disorder_id
-            WHERE d.id = :diagnosis_id
-            GROUP BY d.id, d.patient_id, d.overall_confidence, d.clinical_summary, d.recommended_followup, d.date_of_diagnosis, dd.id
-        """)
-        return pandas.read_sql(query, engine, params={"diagnosis_id": diagnosis_id})
+                     SELECT d.id,
+                            d.patient_id,
+                            d.overall_confidence,
+                            d.clinical_summary,
+                            d.recommended_followup,
+                            d.date_of_diagnosis,
+                            dd.id as diagnosis_disorder_id,
+                            dd.disorder_id,
+                            dis.disorder_name,
+                            dis.dsm_code,
+                            dd.percentage,
+                            dd.explanation,
+                            json_agg(DISTINCT
+                            jsonb_build_object('symptom_id', dds.symptom_id, 'symptom_name', ss.symptom_name))
+                            FILTER (WHERE dds.symptom_id IS NOT NULL) as supporting_symptoms,
+                            json_agg(DISTINCT
+                            jsonb_build_object('symptom_id', ddc.symptom_id, 'symptom_name', cs.symptom_name))
+                            FILTER (WHERE ddc.symptom_id IS NOT NULL) as contradicting_symptoms
+                     FROM diagnosis d
+                              LEFT JOIN diagnosis_disorder dd ON d.id = dd.diagnosis_id
+                              LEFT JOIN disorders dis ON dd.disorder_id = dis.disorder_id
+                              LEFT JOIN diagnosis_disorder_supporting_symptom dds ON dd.id = dds.diagnosis_disorder_id
+                              LEFT JOIN symptoms ss ON dds.symptom_id = ss.symptom_id
+                              LEFT JOIN diagnosis_disorder_contradicting_symptom ddc
+                                        ON dd.id = ddc.diagnosis_disorder_id
+                              LEFT JOIN symptoms cs ON ddc.symptom_id = cs.symptom_id
+                     WHERE d.id = :diagnosis_id
+                     GROUP BY d.id, d.patient_id, d.overall_confidence, d.clinical_summary,
+                              d.recommended_followup, d.date_of_diagnosis,
+                              dd.id, dis.disorder_name, dis.dsm_code
+                     """)
+        df = pandas.read_sql(query, engine, params={"diagnosis_id": diagnosis_id})
 
-    @staticmethod
-    def get_by_patient_id(patient_id: int) -> DataFrame:
-        engine = DBConnector().get_engine()
-        query = text("""
-            SELECT 
-                d.*,
-                dd.id as diagnosis_disorder_id,
-                dd.disorder_id,
-                dd.percentage,
-                dd.explanation,
-                array_agg(DISTINCT dds.symptom_id) FILTER (WHERE dds.symptom_id IS NOT NULL) as supporting_symptom_ids,
-                array_agg(DISTINCT ddc.symptom_id) FILTER (WHERE ddc.symptom_id IS NOT NULL) as contradicting_symptom_ids
-            FROM diagnosis d
-            LEFT JOIN diagnosis_disorder dd ON d.id = dd.diagnosis_id
-            LEFT JOIN diagnosis_disorder_supporting_symptom dds ON dd.id = dds.diagnosis_disorder_id
-            LEFT JOIN diagnosis_disorder_contradicting_symptom ddc ON dd.id = ddc.diagnosis_disorder_id
-            WHERE d.patient_id = :patient_id
-            GROUP BY d.id, d.patient_id, d.overall_confidence, d.clinical_summary, d.recommended_followup, d.date_of_diagnosis, dd.id
-            ORDER BY d.date_of_diagnosis DESC
-        """)
-        return pandas.read_sql(query, engine, params={"patient_id": patient_id})
+        if df.empty:
+            return None
+
+        first = df.iloc[0]
+        result = {
+            "id": int(first["id"]),
+            "patient_id": int(first["patient_id"]),
+            "overall_confidence": float(first["overall_confidence"]),
+            "clinical_summary": first["clinical_summary"],
+            "recommended_followup": first["recommended_followup"],
+            "date_of_diagnosis": str(first["date_of_diagnosis"]),
+            "disorders": [
+                {
+                    "id": int(row["diagnosis_disorder_id"]),
+                    "disorder_id": int(row["disorder_id"]),
+                    "disorder_name": row["disorder_name"],
+                    "dsm_code": row["dsm_code"],
+                    "percentage": float(row["percentage"]),
+                    "explanation": row["explanation"],
+                    "supporting_symptoms": row["supporting_symptoms"] or [],
+                    "contradicting_symptoms": row["contradicting_symptoms"] or [],
+                }
+                for _, row in df.iterrows()
+                if pandas.notna(row["diagnosis_disorder_id"])
+            ]
+        }
+        return result
 
     @staticmethod
     def create(response: DiagnosisAgentResponse) -> int | None:

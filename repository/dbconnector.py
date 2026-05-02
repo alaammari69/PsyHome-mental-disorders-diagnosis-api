@@ -22,7 +22,7 @@ class DBConnector:
             cls._instance._initialize()
         return cls._instance
 
-    def _initialize(self):
+    def _initialize(self)-> None:
         """
         initialize the DB connection variables
         :return: None

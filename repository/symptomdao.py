@@ -3,7 +3,7 @@ import ast
 import numpy as np
 import pandas
 from pandas import DataFrame
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 
 from repository.dbconnector import DBConnector
 
@@ -36,6 +36,26 @@ class SymptomDAO:
         symptom_df['embedding'] = symptom_df['embedding'].apply(
             lambda x: np.array(ast.literal_eval(x), dtype=np.float32) if isinstance(x, str) else (
                 np.array(x, dtype=np.float32) if x is not None else None)
+        )
+
+        return symptom_df
+
+    @staticmethod
+    def get_many(symptom_ids: list[int]) -> DataFrame:
+        query = text("""
+                     SELECT *
+                     FROM symptoms
+                     WHERE symptom_id IN :symptom_ids
+                     """).bindparams(bindparam("symptom_ids", expanding=True))
+
+        params = {"symptom_ids": symptom_ids}
+        engine = DBConnector().get_engine()
+        symptom_df = pandas.read_sql(query, engine, params=params)
+
+        symptom_df['embedding'] = symptom_df['embedding'].apply(
+            lambda x: np.array(ast.literal_eval(x), dtype=np.float32)
+            if isinstance(x, str)
+            else (np.array(x, dtype=np.float32) if x is not None else None)
         )
 
         return symptom_df

@@ -25,34 +25,42 @@ class PatientDAO:
     def insert(
         first_name: str,
         last_name: str,
-        external_ref: str = None,
-        date_of_birth=None,
-        gender: str = None
+        cin: str,
+        date_of_birth,
+        gender: str,
+        username: str,
+        password: str
     ):
         try:
             query = text("""
                 INSERT INTO patients (
                     first_name,
                     last_name,
-                    external_ref,
+                    cin,
                     date_of_birth,
-                    gender
+                    gender,
+                    username,
+                    password
                 )
                 VALUES (
                     :first_name,
                     :last_name,
-                    :external_ref,
+                    :cin,
                     :date_of_birth,
-                    :gender
+                    :gender,
+                    :username,
+                    :password
                 )
                 RETURNING patient_id
             """)
             params = {
                 "first_name": first_name,
                 "last_name": last_name,
-                "external_ref": external_ref,
+                "cin": cin,
                 "date_of_birth": date_of_birth,
-                "gender": gender
+                "gender": gender,
+                "username": username,
+                "password": password
             }
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
@@ -62,6 +70,69 @@ class PatientDAO:
         except Exception as e:
             print(e)
             return None
+
+    @staticmethod
+    def update(
+            patient_id: int,
+            first_name: str = None,
+            last_name: str = None,
+            cin: str = None,
+            date_of_birth=None,
+            gender: str = None,
+            username: str = None,
+            password: str = None
+    ):
+        try:
+            fields = []
+            params = {"patient_id": patient_id}
+
+            if first_name is not None:
+                fields.append("first_name = :first_name")
+                params["first_name"] = first_name
+
+            if last_name is not None:
+                fields.append("last_name = :last_name")
+                params["last_name"] = last_name
+
+            if cin is not None:
+                fields.append("cin = :cin")
+                params["cin"] = cin
+
+            if date_of_birth is not None:
+                fields.append("date_of_birth = :date_of_birth")
+                params["date_of_birth"] = date_of_birth
+
+            if gender is not None:
+                fields.append("gender = :gender")
+                params["gender"] = gender
+
+            if username is not None:
+                fields.append("username = :username")
+                params["username"] = username
+
+            if password is not None:
+                fields.append("password = :password")
+                params["password"] = password
+
+            #nothing to update
+            if not fields:
+                return False
+
+            query = text(f"""
+                UPDATE patients
+                SET {", ".join(fields)}
+                WHERE patient_id = :patient_id
+            """)
+
+            engine = DBConnector().get_engine()
+            with engine.connect() as conn:
+                conn.execute(query, parameters=params)
+                conn.commit()
+                return True
+
+        except Exception as e:
+            print(e)
+            return False
 
     @staticmethod
     def delete(patient_id: int):

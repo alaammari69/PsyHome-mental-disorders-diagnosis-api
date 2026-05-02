@@ -20,6 +20,18 @@ class PatientDisorderDAO:
         return pandas.read_sql(query, engine, params=params)
 
     @staticmethod
+    def get_by_patient_id_full_description(patient_id: int):
+        query = text("""
+            SELECT pd.*, d.*
+            FROM patient_disorders pd
+            JOIN disorders d ON d.disorder_id = pd.disorder_id
+            WHERE pd.patient_id = :patient_id
+        """)
+        params = {"patient_id": patient_id}
+        engine = DBConnector().get_engine()
+        return pandas.read_sql(query, engine, params=params)
+
+    @staticmethod
     def get_by_patient_thread_id(patient_id: int, thread_id: str):
         query = text("""
                      SELECT pd.*, d.disorder_name

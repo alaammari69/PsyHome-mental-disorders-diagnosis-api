@@ -10,20 +10,18 @@ class PatientThreadDAO:
         raise TypeError("cannot instantiate class PatientThreadDAO")
 
     @staticmethod
-    def add_thread(patient_id: int, thread_id: int, code: str, additional_info: str = None ,status: bool = True) -> int | None:
+    def add_thread(patient_id: int, additional_info: str = None ,status: bool = True, diagnosis_id: int = None) -> int | None:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
                 result = conn.execute(text("""
-                    INSERT INTO patient_thread (patient_id, thread_id, code, status, additional_info)
-                    VALUES (:patient_id, :thread_id, :code, :status, :additional_info)
-                    RETURNING id
+                    INSERT INTO patient_thread (patient_id, status, additional_info, diagnosis_id)
+                    VALUES (:patient_id, :status, :additional_info, :diagnosis_id)
                 """), parameters={
                     "patient_id": patient_id,
-                    "thread_id": thread_id,
-                    "code": code,
                     "status": status,
-                    "additional_info": additional_info
+                    "additional_info": additional_info,
+                    "diagnosis_id": diagnosis_id
                 })
                 conn.commit()
                 return result.fetchone()[0]
@@ -32,13 +30,13 @@ class PatientThreadDAO:
             return None
 
     @staticmethod
-    def get(patient_id: int, thread_id: int) -> DataFrame:
+    def get(thread_id: int) -> DataFrame:
         engine = DBConnector().get_engine()
         query = text("""
             SELECT * FROM patient_thread
-            WHERE patient_id = :patient_id AND thread_id = :thread_id
+            WHERE thread_id = :thread_id
         """)
-        return pandas.read_sql(query, engine, params={"patient_id": patient_id, "thread_id": thread_id})
+        return pandas.read_sql(query, engine, params={ "thread_id": thread_id})
 
     @staticmethod
     def get_by_patient_id(patient_id: int) -> DataFrame:
@@ -51,16 +49,15 @@ class PatientThreadDAO:
         return pandas.read_sql(query, engine, params={"patient_id": patient_id})
 
     @staticmethod
-    def change_status(patient_id: int, thread_id: int, status: bool) -> bool:
+    def change_status(thread_id: int, status: bool) -> bool:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
                 conn.execute(text("""
                     UPDATE patient_thread
                     SET status = :status
-                    WHERE patient_id = :patient_id AND thread_id = :thread_id
+                    WHERE thread_id = :thread_id
                 """), parameters={
-                    "patient_id": patient_id,
                     "thread_id": thread_id,
                     "status": status
                 })
@@ -71,7 +68,7 @@ class PatientThreadDAO:
             return False
 
     @staticmethod
-    def nbr_threads_per_patient(patient_id: int) -> int | None:
+    def nbr_threads_per_patient(patient_id: int) -> int:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
@@ -84,12 +81,12 @@ class PatientThreadDAO:
                 return result.fetchone()[0]
         except Exception as e:
             print(e)
-            return None
+            return 0
 
 
 
     @staticmethod
-    def nbr_active_threads_per_patient(patient_id: int) -> int | None:
+    def nbr_active_threads_per_patient(patient_id: int) -> int:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
@@ -102,7 +99,7 @@ class PatientThreadDAO:
                 return result.fetchone()[0]
         except Exception as e:
             print(e)
-            return None
+            return 0
 
     @staticmethod
     def last_session_date(patient_id: int):

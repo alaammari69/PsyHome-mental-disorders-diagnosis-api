@@ -2,7 +2,7 @@ import os
 
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langchain_core.messages import SystemMessage, AIMessage
+from langchain_core.messages import SystemMessage, AIMessage, AnyMessage
 
 from langgraph.checkpoint.postgres import PostgresSaver #this is what's gonna handle all the saving and reloading of the messages automatically
 
@@ -137,7 +137,11 @@ class SymptomExtractionAgent:
             return None
 
 
-    def get_previous_conversation(self):
+    def get_previous_conversation(self)->list[AnyMessage]|None:
+        """
+        this method is used to retrieve only the human messages and the ai messages directed to the user from the whole
+        conversation history        :return:
+        """
         conversation = []
         messages = self.get_all_messages()
 
@@ -168,3 +172,36 @@ class SymptomExtractionAgent:
 
         return conversation
 
+    @staticmethod
+    def get_previous_conversation_readonly(context: PatientContext) -> list[AnyMessage]:
+        """
+        Creates only the checkpointer (no agent or LLM) to retrieve messages
+        for read only access like the session viewer API.
+        """
+        postgres_conn = DBConnector().get_psycopg_connection()
+        checkpointer = PostgresSaver(postgres_conn)
+        # No checkpointer.setup() since the 4 tables already exist
+
+        config = {
+            "configurable": {
+                "thread_id": context.thread_id,
+                "user_id": context.patient_id
+            }
+        }
+
+        checkpointer_tuple = checkpointer.get_tuple(config=config)
+        if checkpointer_tuple is None:
+            return []
+
+        messages = checkpointer_tuple[1]['channel_values']['messages']
+        conversation = []
+
+        for msg in messages:
+            if type(msg) is HumanMessage and msg.content.strip():
+                conversation.append(HumanMessage(content=msg.content))
+            elif type(msg) is AIMessage and msg.tool_calls:
+                for tool_call in msg.tool_calls:
+                    if tool_call['name'] == "SymptomExtractionAgentResponse":
+                        conversation.append(AIMessage(content=tool_call["args"]["response"]))
+
+        return conversation

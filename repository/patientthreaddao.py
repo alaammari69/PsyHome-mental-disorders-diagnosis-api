@@ -17,6 +17,7 @@ class PatientThreadDAO:
                 result = conn.execute(text("""
                     INSERT INTO patient_thread (patient_id, status, additional_info, diagnosis_id)
                     VALUES (:patient_id, :status, :additional_info, :diagnosis_id)
+                    returning thread_id
                 """), parameters={
                     "patient_id": patient_id,
                     "status": status,
@@ -24,7 +25,8 @@ class PatientThreadDAO:
                     "diagnosis_id": diagnosis_id
                 })
                 conn.commit()
-                return result.fetchone()[0]
+                row = result.fetchone()
+                return row[0] if row else None
         except Exception as e:
             print(e)
             return None
@@ -115,3 +117,20 @@ class PatientThreadDAO:
         except Exception as e:
             print(e)
             return None
+
+    @staticmethod
+    def delete(thread_id: int)->bool:
+        try:
+            engine = DBConnector().get_engine()
+            query = text("""
+                delete from patient_thread
+                    where thread_id = :thread_id
+            """)
+            parameters = {"thread_id": thread_id}
+            with engine.connect() as conn:
+                conn.execute(query, parameters=parameters)
+                conn.commit()
+                return True
+        except Exception as e:
+            print(e)
+            return False

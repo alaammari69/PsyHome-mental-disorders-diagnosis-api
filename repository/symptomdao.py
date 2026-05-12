@@ -1,7 +1,9 @@
 import ast
+import os
 
 import numpy as np
 import pandas
+from cryptography.fernet import Fernet
 from pandas import DataFrame
 from sqlalchemy import text, bindparam
 
@@ -136,5 +138,6 @@ class SymptomDAO:
         except Exception as e:
             print(e)
             return None
+
 
 

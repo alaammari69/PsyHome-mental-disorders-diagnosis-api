@@ -29,3 +29,44 @@ class PatientUpdateRequest(PatientCreateRequest):
 
 class PatientDeleteRequest(BaseModel):
     patient_id: int
+
+class PsychiatristUpdatePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+class ThreadDeleteRequest(BaseModel):
+    thread_id: int
+
+class AddPatientSymptomsRequest(BaseModel):
+    patient_id: int
+    thread_id: int
+    symptom_id: int
+
+class AddPatientDisorderRequest(BaseModel):
+    patient_id: int
+    thread_id: int
+    disorder_id: int
+class AddSessionRequest(BaseModel):
+    patient_id: int
+    additional_info: str
+    symptoms: list[int]
+    disorders: list[int]
+
+class PsychiatristDeleteRequest(BaseModel):
+    psy_id: int
+
+class UpdatePsychiatristVerificationStatusRequest(BaseModel):
+    psych_id: int
+    account_verified: bool
+
+class UpdatePsychiatristAccessLevelRequest(BaseModel):
+    psych_id: int
+    psy_type: str
+
+class PatientLoginRequest(BaseModel):
+    username: str
+    password: str
+
+class PatientChatRequest(BaseModel):
+    thread_id:int
+    message: str

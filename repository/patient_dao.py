@@ -15,6 +15,15 @@ class PatientDAO:
         return pandas.read_sql(query, engine)
 
     @staticmethod
+    def get_by_username_password(username: str, password: str):
+        query = text(f"""
+        SELECT * FROM patients WHERE username = :username AND password = :password
+        """)
+        engine = DBConnector().get_engine()
+        params = {"password": password, "username": username}
+        return pandas.read_sql(query, engine, params=params)
+
+    @staticmethod
     def get(patient_id: int):
         query = text("SELECT * FROM patients WHERE patient_id = :patient_id")
         params = {"patient_id": patient_id}
@@ -147,3 +156,19 @@ class PatientDAO:
         except Exception as e:
             print(e)
             return False
+
+    @staticmethod
+    def username_exists(username: str) -> bool:
+        query = text("SELECT 1 FROM patients WHERE username = :username LIMIT 1")
+        params = {"username": username}
+        engine = DBConnector().get_engine()
+        result = pandas.read_sql(query, engine, params=params)
+        return not result.empty
+
+    @staticmethod
+    def cin_exists(cin: str) -> bool:
+        query = text("SELECT 1 FROM patients WHERE cin = :cin LIMIT 1")
+        params = {"cin": cin}
+        engine = DBConnector().get_engine()
+        result = pandas.read_sql(query, engine, params=params)
+        return not result.empty

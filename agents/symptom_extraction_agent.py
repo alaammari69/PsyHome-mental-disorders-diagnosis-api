@@ -17,10 +17,8 @@ from models.context_classes import PatientContext
 from models.response_schemas import SymptomExtractionAgentResponse
 from prompts.custom_templates import symptom_extraction_prompt_template
 
-from dotenv import load_dotenv
-
 from repository.dbconnector import DBConnector
-
+from repository.patientthreaddao import PatientThreadDAO
 
 
 def _create_checkpointer()-> PostgresSaver:
@@ -39,14 +37,15 @@ def _create_checkpointer()-> PostgresSaver:
 class SymptomExtractionAgent:
 
     def __init__(self, context: PatientContext):
-        load_dotenv() # first we load the environment variables
         end_conversation_trigger = os.getenv("SYS_ABORT_SIGNAL_END_OF_CONVERSATION")
         end_conversation_code = os.getenv("EXIT_CODE_END_OF_CONVERSATION")
+        additional_info = PatientThreadDAO.get(thread_id=int(context.thread_id)).to_dict(orient="records")[0]["additional_info"]
 
         # prepare the system prompt with all the codes and flags from the .env
         system_prompt = symptom_extraction_prompt_template.format(
             end_signal=end_conversation_trigger,
-            exit_code=end_conversation_code
+            exit_code=end_conversation_code,
+            additional_info= additional_info
         )
 
         #print(system_prompt)

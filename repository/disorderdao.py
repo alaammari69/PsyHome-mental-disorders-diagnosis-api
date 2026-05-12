@@ -17,6 +17,47 @@ class DisorderDAO:
         return disorders_df
 
     @staticmethod
+    def get_all_with_symptoms():
+        query = text("""
+                     SELECT d.disorder_id,
+                            d.category_id,
+                            d.disorder_name,
+                            d.dsm_code,
+                            d.parent_disorder_id,
+                            d.is_subtype,
+                            s.symptom_id,
+                            s.symptom_name,
+                            s.symptom_description
+                     FROM disorders d
+                              LEFT JOIN symptoms s ON d.disorder_id = s.disorder_id
+                     ORDER BY d.disorder_id
+                     """)
+        engine = DBConnector().get_engine()
+        df = pandas.read_sql(query, engine)
+
+        disorders = {}
+        for _, row in df.iterrows():
+            d_id = row["disorder_id"]
+            if d_id not in disorders:
+                disorders[d_id] = {
+                    "disorder_id": d_id,
+                    "category_id": row["category_id"],
+                    "disorder_name": row["disorder_name"],
+                    "dsm_code": row["dsm_code"],
+                    "parent_disorder_id": None if pandas.isna(row["parent_disorder_id"]) else row["parent_disorder_id"],
+                    "is_subtype": None if pandas.isna(row["is_subtype"]) else row["is_subtype"],
+                    "symptoms": []
+                }
+            if pandas.notna(row["symptom_id"]):
+                disorders[d_id]["symptoms"].append({
+                    "symptom_id": int(row["symptom_id"]),
+                    "symptom_name": row["symptom_name"],
+                    "symptom_description": row["symptom_description"]
+                })
+
+        return list(disorders.values())
+
+    @staticmethod
     def get(disorder_id: int | list[int])->DataFrame:
         if isinstance(disorder_id, list):
             query = text("SELECT * FROM disorders WHERE disorder_id = ANY(:ids)")

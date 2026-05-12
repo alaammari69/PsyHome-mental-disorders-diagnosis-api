@@ -49,8 +49,8 @@ class PsychiatristDAO:
         date_of_birth,
         phone: str = None,
         address: str = None,
-        profile_picture_url: str = None,
-        specialization: str = None
+        specialization: str = None,
+        psy_type: str = None
     ):
         try:
             query = text("""
@@ -63,8 +63,8 @@ class PsychiatristDAO:
                     date_of_birth,
                     phone,
                     address,
-                    profile_picture_url,
-                    specialization
+                    specialization,
+                    psy_type
                 )
                 VALUES (
                     :first_name,
@@ -75,8 +75,8 @@ class PsychiatristDAO:
                     :date_of_birth,
                     :phone,
                     :address,
-                    :profile_picture_url,
-                    :specialization
+                    :specialization,
+                    :psy_type
                 )
                 RETURNING id
             """)
@@ -89,8 +89,8 @@ class PsychiatristDAO:
                 "date_of_birth": date_of_birth,
                 "phone": _encrypt_string(phone),
                 "address": _encrypt_string(address),
-                "profile_picture_url": _encrypt_string(profile_picture_url),
-                "specialization": _encrypt_string(specialization)
+                "specialization": _encrypt_string(specialization),
+                "psy_type": _encrypt_string(psy_type)
             }
 
             engine = DBConnector().get_engine()
@@ -114,9 +114,9 @@ class PsychiatristDAO:
         date_of_birth=None,
         phone: str = None,
         address: str = None,
-        profile_picture_url: str = None,
         specialization: str = None,
-        account_verified: bool = None
+        account_verified: bool = None,
+        psy_type: str = None
     ):
         try:
             query = text("""
@@ -130,9 +130,9 @@ class PsychiatristDAO:
                     date_of_birth = COALESCE(:date_of_birth, date_of_birth),
                     phone = COALESCE(:phone, phone),
                     address = COALESCE(:address, address),
-                    profile_picture_url = COALESCE(:profile_picture_url, profile_picture_url),
                     specialization = COALESCE(:specialization, specialization),
                     account_verified = COALESCE(:account_verified, account_verified),
+                    psy_type = COALESCE(:psy_type, psy_type),
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id
             """)
@@ -147,9 +147,9 @@ class PsychiatristDAO:
                 "date_of_birth": date_of_birth,
                 "phone": _encrypt_string(phone),
                 "address": _encrypt_string(address),
-                "profile_picture_url": _encrypt_string(profile_picture_url),
                 "specialization": _encrypt_string(specialization),
-                "account_verified": account_verified
+                "account_verified": account_verified,
+                "psy_type": _encrypt_string(psy_type)
             }
 
             engine = DBConnector().get_engine()
@@ -181,7 +181,7 @@ class PsychiatristDAO:
 def _decrypt(data: DataFrame) -> None:
     columns_to_decrypt = [
         "first_name", "last_name", "cin", "email", "password",
-        "phone", "address", "profile_picture_url", "specialization"
+        "phone", "address", "specialization", "psy_type"
     ]
 
     for col in columns_to_decrypt:

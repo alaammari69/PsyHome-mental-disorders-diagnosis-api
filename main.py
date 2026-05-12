@@ -45,17 +45,6 @@ if __name__ == '__main__':
     result = symptom_extraction_agent.reset_session()
     print(result.response)
 
-    # *******************************
-    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-    diagnosis_agent = DiagnosisAgent()
-    diagnosis_agent.load_patient_info(PatientDAO.get(patient_id=context.patient_id).to_dict(orient="records"))
-    diagnosis_agent.load_chat_history(messages=messages)
-    diagnosis_agent.load_patient_symptoms(PatientSymptomDAO.get_by_patient_id(patient_id=context.patient_id)) # dataframe of patient symptoms
-    diagnosis = diagnosis_agent.generate_diagnosis()
-    DiagnosisDAO.create(diagnosis)
-    debug(diagnosis)
-    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-    # *******************************
 
     while True:
 

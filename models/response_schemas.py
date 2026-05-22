@@ -20,7 +20,7 @@ class DiagnosisAgentResponse(BaseModel):
     """schema for the output of the diagnosis agent"""
 
     # patient info
-    patient_id: int
+    patient_id: int = Field(description="Patient id")
 
     # diagnosis
     extracted_disorders: list[ExtractedDisorder] = Field(description="2-4 possible disorders ranked by percentage. The sum of all percentages must not exceed 100.0.")

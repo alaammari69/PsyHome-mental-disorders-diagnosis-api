@@ -36,3 +36,8 @@ class LLMModels:
                 api_key= os.getenv("DEEPSEEK_API_KEY"),
             )
         return cls._deepseek_llm_model
+
+    def get_deepseek_llm_structured(schema):
+        return LLMModels.get_deepseek_llm_model().with_structured_output(
+            schema=schema, method="json_mode"
+        )

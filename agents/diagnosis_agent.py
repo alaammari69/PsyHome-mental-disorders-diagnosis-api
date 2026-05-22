@@ -78,14 +78,23 @@ class DiagnosisAgent:
 
         Patient Symptoms:
         {self.patient_symptoms}
-        
+
         Disorder IDs:
         {self.disorder_ids}
-        
+
         Instruction:
         GENERATE_DIAGNOSIS
         """)
             ]
         })
-        return response["structured_response"]
+
+        print(response)
+
+        if "structured_response" in response:
+            return response["structured_response"]
+
+        if "output" in response:
+            return response["output"]
+
+        return response
 

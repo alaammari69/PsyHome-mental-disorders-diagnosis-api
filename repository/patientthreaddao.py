@@ -1,7 +1,9 @@
 import pandas
 from pandas import DataFrame
 from sqlalchemy import text
+from sympy.codegen.ast import none
 
+from models.context_classes import StageOfDiagnosis
 from repository.dbconnector import DBConnector
 
 
@@ -10,19 +12,21 @@ class PatientThreadDAO:
         raise TypeError("cannot instantiate class PatientThreadDAO")
 
     @staticmethod
-    def add_thread(patient_id: int, additional_info: str = None ,status: bool = True, diagnosis_id: int = None) -> int | None:
+    def add_thread(patient_id: int, additional_info: str = None ,status: bool = True, diagnosis_id: int = None, context_symptom_id: int = None, stage_of_diagnosis: str = None) -> int | None:
         try:
             engine = DBConnector().get_engine()
             with engine.connect() as conn:
                 result = conn.execute(text("""
-                    INSERT INTO patient_thread (patient_id, status, additional_info, diagnosis_id)
-                    VALUES (:patient_id, :status, :additional_info, :diagnosis_id)
+                    INSERT INTO patient_thread (patient_id, status, additional_info, diagnosis_id, context_symptom_id, stage_of_diagnosis)
+                    VALUES (:patient_id, :status, :additional_info, :diagnosis_id, :context_symptom_id, :stage_of_diagnosis)
                     returning thread_id
                 """), parameters={
                     "patient_id": patient_id,
                     "status": status,
                     "additional_info": additional_info,
-                    "diagnosis_id": diagnosis_id
+                    "diagnosis_id": diagnosis_id,
+                    "context_symptom_id": context_symptom_id,
+                    "stage_of_diagnosis": stage_of_diagnosis
                 })
                 conn.commit()
                 row = result.fetchone()
@@ -131,6 +135,73 @@ class PatientThreadDAO:
                 conn.execute(query, parameters=parameters)
                 conn.commit()
                 return True
+        except Exception as e:
+            print(e)
+            return False
+
+    @staticmethod
+    def update_context_symptom_id(thread_id: int, context_symptom_id: int | None) -> bool:
+        try:
+            engine = DBConnector().get_engine()
+
+            with engine.connect() as conn:
+                conn.execute(text("""
+                                  UPDATE patient_thread
+                                  SET context_symptom_id = :context_symptom_id
+                                  WHERE thread_id = :thread_id
+                                  """), parameters={
+                    "thread_id": thread_id,
+                    "context_symptom_id": context_symptom_id
+                })
+
+                conn.commit()
+                return True
+
+        except Exception as e:
+            print(e)
+            return False
+
+
+    @staticmethod
+    def update_stage_of_diagnosis(thread_id: int, stage_of_diagnosis: StageOfDiagnosis) -> bool:
+        try:
+            engine = DBConnector().get_engine()
+
+            with engine.connect() as conn:
+                conn.execute(text("""
+                                  UPDATE patient_thread
+                                  SET stage_of_diagnosis = :stage_of_diagnosis
+                                  WHERE thread_id = :thread_id
+                                  """), parameters={
+                    "thread_id": thread_id,
+                    "stage_of_diagnosis": stage_of_diagnosis.name
+                })
+
+                conn.commit()
+                return True
+
+        except Exception as e:
+            print(e)
+            return False
+
+    @staticmethod
+    def update_diagnosis_id(thread_id: int, diagnosis_id: int) -> bool:
+        try:
+            engine = DBConnector().get_engine()
+
+            with engine.connect() as conn:
+                conn.execute(text("""
+                                  UPDATE patient_thread
+                                  SET diagnosis_id = :diagnosis_id
+                                  WHERE thread_id = :thread_id
+                                  """), parameters={
+                    "thread_id": thread_id,
+                    "diagnosis_id": diagnosis_id
+                })
+
+                conn.commit()
+                return True
+
         except Exception as e:
             print(e)
             return False

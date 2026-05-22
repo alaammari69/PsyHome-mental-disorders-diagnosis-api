@@ -86,12 +86,6 @@ class SymptomExtractionAgent:
             "configurable" : {"thread_id": context.thread_id, "user_id" : context.patient_id}
         }
 
-        # these variable are used mainly for generating a question that's relevant to the patient
-        self.possible_undiagnosed_symptoms = []
-        self.possible_undiagnosed_disorders = []
-        self.current_questioned_symptom = None
-
-
 
     def send_human_message(self, user_prompt: str)->SymptomExtractionAgentResponse:
 

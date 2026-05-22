@@ -393,6 +393,7 @@ def add_session(request: AddSessionRequest, payload: dict = Depends(verify_psych
         thread_id = PatientThreadDAO.add_thread(
             patient_id=request.patient_id,
             additional_info=request.additional_info,
+            stage_of_diagnosis="START"
         )
         for symptom_id in request.symptoms:
             PatientSymptomDAO.insert_or_update_max_confidence(
@@ -638,23 +639,24 @@ async def send_chat_message(request: PatientChatRequest, payload: dict = Depends
             )
             diagnosis_agent.load_chat_history(messages=messages) # loading the chat history
             diagnosis_agent.load_patient_symptoms(
-                PatientSymptomDAO.get_by_patient_id(patient_id=patient_id).to_dict(orient="records") # loading the symptoms
+                PatientSymptomDAO.get_by_patient_id(patient_id=patient_id) # loading the symptoms
             )
 
-            asyncio.create_task(generate_diagnosis(diagnosis_agent))
-
+            asyncio.create_task(generate_diagnosis(diagnosis_agent, request.thread_id))
+            debug_print(clean_response)
             return {"response": clean_response, "open": False}
-
+        debug_print(result.response)
         return {"response": result.response, "open": True}
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-async def generate_diagnosis(diagnosis_agent):
+async def generate_diagnosis(diagnosis_agent, thread_id):
     print("generating diagnosis ...")
     diagnosis = await asyncio.to_thread(diagnosis_agent.generate_diagnosis)  # generate diagnosis
-    DiagnosisDAO.create(diagnosis)  # save diagnosis in the database
+    diagnosis_id = DiagnosisDAO.create(diagnosis)  # save diagnosis in the database
+    PatientThreadDAO.update_diagnosis_id(int(thread_id), diagnosis_id)
     print("diagnosis generated")
 
 

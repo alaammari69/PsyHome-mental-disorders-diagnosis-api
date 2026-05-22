@@ -129,6 +129,7 @@ class DiagnosisDAO:
                 return diagnosis_id
 
         except Exception as e:
+            print("ERROR WHILE SAVING DIAGNOSIS")
             print(e)
             return None
 

@@ -17,7 +17,7 @@ from devtools import debug
 
 load_dotenv()
 
-HuggingFaceEmbedder.get_embedder()
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     context = PatientContext(
         user_id=2,
-        thread_id="50",
+        thread_id="1013",
     )
 
     symptom_extraction_agent = SymptomExtractionAgent(
@@ -44,6 +44,19 @@ if __name__ == '__main__':
 
     result = symptom_extraction_agent.reset_session()
     print(result.response)
+
+    # ******************************* for testing i put one here
+    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    diagnosis_agent = DiagnosisAgent()
+    diagnosis_agent.load_patient_info(PatientDAO.get(patient_id=context.patient_id).to_dict(orient="records"))
+    diagnosis_agent.load_chat_history(messages=messages)
+    diagnosis_agent.load_patient_symptoms(PatientSymptomDAO.get_by_patient_id(patient_id=context.patient_id))
+
+    diagnosis = diagnosis_agent.generate_diagnosis()
+    print(diagnosis)
+    DiagnosisDAO.create(diagnosis)
+    print("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    # *******************************
 
 
     while True:

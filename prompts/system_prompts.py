@@ -190,4 +190,9 @@ DIAGNOSIS RULES:
    - Many responses were NEUTRAL or evasive
    - Few symptoms were CONFIRMED
    - The conversation was short or inconclusive
+   
+CRITICAL: Your entire response MUST be valid JSON. 
+All string values MUST be wrapped in double quotes, 
+including clinical_summary and recommended_followup.
+Do NOT output raw unquoted strings as values.
 """

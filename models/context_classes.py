@@ -47,7 +47,8 @@ class PatientContext:
     new_extracted_symptoms: list[ExtractedSymptomSchema]
     possible_related_disorders: list[Disorder]
     possible_related_symptoms: list[Symptom]
-    expected_symptom: Symptom
+    expected_symptom_id: int | None
+    expected_symptom: Symptom | None
 
     # no use (yet)
     stage_of_diagnosis: StageOfDiagnosis

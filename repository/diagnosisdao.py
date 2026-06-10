@@ -1,9 +1,12 @@
+import datetime
+
 import pandas
 from pandas import DataFrame
 from sqlalchemy import text
 
 from models.response_schemas import DiagnosisAgentResponse
 from repository.dbconnector import DBConnector
+from repository.patient_disorders_dao import PatientDisorderDAO
 
 
 class DiagnosisDAO:
@@ -110,6 +113,14 @@ class DiagnosisDAO:
                         "explanation": extracted.explanation,
                     })
                     dd_id = dd_result.fetchone()[0]
+                    # save disorder in the patient_disorders
+                    PatientDisorderDAO.insert(
+                        patient_id=response.patient_id,
+                        disorder_id=extracted.disorder_id,
+                        thread_id="1",
+                        confidence=extracted.percentage*0.01,
+                        diagnosed_at=datetime.datetime.now()
+                    )
 
                     # insert supporting symptoms
                     for symptom_id in extracted.supporting_symptoms_IDs:

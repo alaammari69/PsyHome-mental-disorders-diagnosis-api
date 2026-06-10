@@ -13,6 +13,8 @@ The system is built around two specialized AI agents:
 - **SymptomExtractionAgent** — Engages the patient in a structured conversation to extract and record symptoms in real time.
 - **DiagnosisAgent** — Analyzes the full conversation history, patient profile, and extracted symptoms to generate a clinical diagnosis.
 
+!!! **DATABASE IMAGE LINK**: https://drive.google.com/drive/folders/1e_Uk1bOTzDbaEE61KDfU5WlK4aEYQEFH?usp=sharing
+
 ## Tech Stack
 
 - **Language:** Python

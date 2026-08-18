@@ -6,7 +6,7 @@ The backend AI engine powering **PsyHome**, an agentic platform for AI-assisted 
 
 ## Demo
 
-[![PsyHome Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+[![PsyHome Demo](https://img.youtube.com/vi/HtEUl5g3oxw/0.jpg)](https://youtu.be/HtEUl5g3oxw)
 
 ## Part of the PsyHome Platform
 

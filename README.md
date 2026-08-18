@@ -1,4 +1,4 @@
-# PsyHome — AI Diagnostic Engine 🧠
+# PsyHome: AI Diagnostic Engine 🧠
 
 The backend AI engine powering **PsyHome**, an agentic platform for AI-assisted psychiatric symptom extraction and diagnosis support. Built as a final-year engineering capstone project (graded *Excellent*), PsyHome demonstrates how a multi-agent LLM pipeline can conduct structured clinical conversations, ground its reasoning in the DSM-5, and produce validated diagnostic output for review by a licensed psychiatrist.
 

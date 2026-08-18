@@ -4,6 +4,10 @@ The backend AI engine powering **PsyHome**, an agentic platform for AI-assisted 
 
 > **Status:** advanced prototype, not a shipped/production product. Built as an academic capstone (PFE) to demonstrate an end-to-end agentic architecture, not to be used for real clinical decisions.
 
+## Demo
+
+[![PsyHome Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+
 ## Part of the PsyHome Platform
 
 This repo is the AI core. The full system also includes:
